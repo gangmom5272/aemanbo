@@ -11,7 +11,9 @@ from .services import (
     authenticate_oauth_user,
     build_oauth_authorization_url,
 )
-from django.contrib.auth import login
+
+from django.contrib.auth import login, logout
+
 from .serializers import UserProfileSerializer
 
 
@@ -95,3 +97,29 @@ class OAuthCallbackAPIView(APIView):
                 "user": UserProfileSerializer(user).data,
             }
         )
+
+class AuthSessionAPIView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request):
+        if not request.user.is_authenticated:
+            return Response(
+                {
+                    "authenticated": False,
+                    "user": None,
+                }
+            )
+
+        return Response(
+            {
+                "authenticated": True,
+                "user": UserProfileSerializer(request.user).data,
+            }
+        )
+
+
+class LogoutAPIView(APIView):
+    def post(self, request):
+        logout(request)
+        return Response(status=status.HTTP_204_NO_CONTENT)

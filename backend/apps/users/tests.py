@@ -176,3 +176,35 @@ class OAuthCallbackAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.data["detail"], "Unsupported OAuth provider.")
+
+class AuthSessionAPITests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="sessionuser",
+            nickname="session-user",
+            email="session@example.com",
+            password="testpass1234",
+        )
+
+    def test_session_api_returns_anonymous_state(self):
+        response = self.client.get(reverse("auth:session"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data["authenticated"])
+        self.assertIsNone(response.data["user"])
+
+    def test_session_api_returns_authenticated_user(self):
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.get(reverse("auth:session"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["authenticated"])
+        self.assertEqual(response.data["user"]["id"], self.user.id)
+
+    def test_logout_api_returns_204(self):
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post(reverse("auth:logout"))
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
