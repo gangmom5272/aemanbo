@@ -128,11 +128,14 @@ AUTH_USER_MODEL = 'users.User'
 OAUTH_PROVIDERS = {
     "google": {
         "client_id": os.environ.get("GOOGLE_CLIENT_ID", ""),
+        "client_secret": os.environ.get("GOOGLE_CLIENT_SECRET", ""),
         "redirect_uri": os.environ.get(
             "GOOGLE_REDIRECT_URI",
             "http://127.0.0.1:8000/api/v1/auth/oauth/google/callback/",
         ),
         "authorization_url": "https://accounts.google.com/o/oauth2/v2/auth",
+        "token_url": "https://oauth2.googleapis.com/token",
+        "userinfo_url": "https://www.googleapis.com/oauth2/v3/userinfo",
         "scope": "openid email profile",
         "extra_params": {
             "access_type": "offline",
@@ -141,21 +144,27 @@ OAUTH_PROVIDERS = {
     },
     "kakao": {
         "client_id": os.environ.get("KAKAO_CLIENT_ID", ""),
+        "client_secret": os.environ.get("KAKAO_CLIENT_SECRET", ""),
         "redirect_uri": os.environ.get(
             "KAKAO_REDIRECT_URI",
             "http://127.0.0.1:8000/api/v1/auth/oauth/kakao/callback/",
         ),
         "authorization_url": "https://kauth.kakao.com/oauth/authorize",
+        "token_url": "https://kauth.kakao.com/oauth/token",
+        "userinfo_url": "https://kapi.kakao.com/v2/user/me",
         "scope": "",
         "extra_params": {},
     },
     "naver": {
         "client_id": os.environ.get("NAVER_CLIENT_ID", ""),
+        "client_secret": os.environ.get("NAVER_CLIENT_SECRET", ""),
         "redirect_uri": os.environ.get(
             "NAVER_REDIRECT_URI",
             "http://127.0.0.1:8000/api/v1/auth/oauth/naver/callback/",
         ),
         "authorization_url": "https://nid.naver.com/oauth2.0/authorize",
+        "token_url": "https://nid.naver.com/oauth2.0/token",
+        "userinfo_url": "https://openapi.naver.com/v1/nid/me",
         "scope": "",
         "extra_params": {},
     },
