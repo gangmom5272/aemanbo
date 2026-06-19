@@ -9,18 +9,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "username",
-            "nickname",
             "email",
+            "nickname",
             "profile_image_url",
             "role",
             "status",
             "joined_at",
         )
-        read_only_fields = (
-            "id",
-            "username",
-            "email",
-            "role",
-            "status",
-            "joined_at",
-        )
+        read_only_fields = ("id", "username", "email", "role", "status", "joined_at")

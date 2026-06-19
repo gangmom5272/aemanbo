@@ -2,6 +2,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
+from django.contrib.auth import login, logout
+
 from .services import (
     MissingOAuthClientIDError,
     MissingOAuthClientSecretError,
@@ -12,13 +14,11 @@ from .services import (
     build_oauth_authorization_url,
 )
 
-from django.contrib.auth import login, logout
-
 from .serializers import UserProfileSerializer
 
 
-class UserProfileAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+class MyProfileAPIView(APIView):
+    permission_classes = (IsAuthenticated,)
 
     def get(self, request):
         serializer = UserProfileSerializer(request.user)
@@ -33,6 +33,7 @@ class UserProfileAPIView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
 
 class OAuthAuthorizationURLAPIView(APIView):
     authentication_classes = []
