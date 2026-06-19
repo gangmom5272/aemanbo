@@ -1,3 +1,4 @@
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -13,6 +14,7 @@ class UserProfileAPITests(APITestCase):
             email="test@example.com",
             password="testpass1234",
         )
+
 
     def test_profile_api_requires_authentication(self):
         response = self.client.get(reverse("users:my-profile"))
@@ -66,3 +68,56 @@ class UserProfileAPITests(APITestCase):
 
         self.user.refresh_from_db()
         self.assertEqual(self.user.role, User.Role.USER)
+
+class OAuthAuthorizationURLAPITests(APITestCase):
+    @override_settings(
+        OAUTH_PROVIDERS={
+            "google": {
+                "client_id": "google-client-id",
+                "redirect_uri": "http://127.0.0.1:8000/api/v1/auth/oauth/google/callback/",
+                "authorization_url": "https://accounts.google.com/o/oauth2/v2/auth",
+                "scope": "openid email profile",
+                "extra_params": {
+                    "access_type": "offline",
+                    "prompt": "consent",
+                },
+            }
+        }
+    )
+    def test_oauth_authorization_url_api_returns_authorization_url(self):
+        response = self.client.get(reverse("auth:oauth-url", args=["google"]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["provider"], "google")
+        self.assertIn(
+            "https://accounts.google.com/o/oauth2/v2/auth?",
+            response.data["authorization_url"],
+        )
+        self.assertIn("client_id=google-client-id", response.data["authorization_url"])
+        self.assertIn("response_type=code", response.data["authorization_url"])
+
+    def test_oauth_authorization_url_api_returns_404_for_unsupported_provider(self):
+        response = self.client.get(reverse("auth:oauth-url", args=["github"]))
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.data["detail"], "Unsupported OAuth provider.")
+
+    @override_settings(
+        OAUTH_PROVIDERS={
+            "google": {
+                "client_id": "",
+                "redirect_uri": "http://127.0.0.1:8000/api/v1/auth/oauth/google/callback/",
+                "authorization_url": "https://accounts.google.com/o/oauth2/v2/auth",
+                "scope": "openid email profile",
+                "extra_params": {},
+            }
+        }
+    )
+    def test_oauth_authorization_url_api_requires_client_id(self):
+        response = self.client.get(reverse("auth:oauth-url", args=["google"]))
+
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(
+            response.data["detail"],
+            "OAuth client_id is not configured.",
+        )
