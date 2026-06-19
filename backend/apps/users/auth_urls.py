@@ -1,10 +1,17 @@
 from django.urls import path
 
-from .views import OAuthAuthorizationURLAPIView, OAuthCallbackAPIView
+from .views import (
+    AuthSessionAPIView,
+    LogoutAPIView,
+    OAuthAuthorizationURLAPIView,
+    OAuthCallbackAPIView,
+)
 
 app_name = "auth"
 
 urlpatterns = [
+    path("session/", AuthSessionAPIView.as_view(), name="session"),
+    path("logout/", LogoutAPIView.as_view(), name="logout"),
     path(
         "oauth/<str:provider>/url/",
         OAuthAuthorizationURLAPIView.as_view(),
