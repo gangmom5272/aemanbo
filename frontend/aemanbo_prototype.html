@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>애만보 · 전체 흐름 프로토타입</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F7F5F4;--surface:#FFFFFF;--surface-2:#FBF7F0;
+  --ink:#1A1622;--ink-soft:#4A4458;
+  --paper:#F1E9DA;--paper-ink:#1A1622;
+  --spot:#FF3E64;--spot-deep:#D81E45;
+  --glow:#7C4DEF;--glow-2:#11B5B0;
+  --muted:#6E6779;--muted-2:#9C95A6;
+  --line:#E8E1D4;--line-2:#DDD5C5;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans KR',sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+::selection{background:var(--spot);color:#fff}
+a{color:inherit;text-decoration:none}
+.mono{font-family:'Space Mono',monospace}
+
+.view{display:none}
+.view.active{display:block;animation:fade .4s ease}
+#view-login.active{display:grid;animation:fade .4s ease}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* header */
+header{position:sticky;top:0;z-index:50;background:rgba(247,245,244,.85);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+body[data-view="login"] header{display:none}
+.bar{max-width:1160px;margin:0 auto;padding:13px 28px;display:flex;align-items:center;gap:20px}
+.logo{display:flex;align-items:center;gap:9px;flex-shrink:0;cursor:pointer}
+.logo .glyph{width:33px;height:33px;border-radius:9px;background:linear-gradient(135deg,var(--glow),var(--spot));position:relative;box-shadow:0 5px 14px -4px rgba(124,77,239,.5)}
+.logo .glyph::before{content:"";position:absolute;width:12px;height:2px;background:#fff;border-radius:2px;transform:rotate(-12deg);top:15px;left:10px}
+.logo .glyph::after{content:"";position:absolute;width:6px;height:6px;border:2px solid #fff;border-radius:50%;right:5px;bottom:5px;background:var(--spot)}
+.logo .word{font-family:'Black Han Sans',sans-serif;font-size:20px}
+.logo .word b{color:var(--spot)}
+.logo .tag{font-size:10px;color:var(--muted);letter-spacing:.8px;margin-top:1px}
+.search{flex:1;max-width:400px;display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--line-2);border-radius:11px;padding:8px 14px;transition:border-color .2s,box-shadow .2s}
+.search:focus-within{border-color:var(--glow);box-shadow:0 0 0 3px rgba(124,77,239,.15)}
+.search svg{color:var(--muted)}
+.search input{flex:1;background:none;border:none;outline:none;color:var(--ink);font-family:inherit;font-size:14px}
+.search input::placeholder{color:var(--muted-2)}
+.nav{display:flex;align-items:center;gap:19px;margin-left:auto}
+.nav a{font-size:14px;color:var(--muted);font-weight:500;cursor:pointer;transition:color .15s}
+.nav a:hover,.nav a.on{color:var(--ink)}
+.nav .uic{width:33px;height:33px;border-radius:50%;background:linear-gradient(135deg,var(--glow),var(--spot));cursor:pointer;flex-shrink:0}
+
+.wrap{max-width:1160px;margin:0 auto;padding:0 28px;position:relative;z-index:1}
+
+/* cover helpers */
+.cv-anime{color:#fff;position:relative}
+.cv-anime::after{content:"";position:absolute;inset:0;background:radial-gradient(120% 80% at 70% 18%,rgba(255,255,255,.2),transparent 55%),repeating-linear-gradient(115deg,rgba(255,255,255,.05) 0 2px,transparent 2px 13px)}
+.cv-manga{background:var(--paper);color:var(--paper-ink);position:relative}
+.cv-manga::before{content:"";position:absolute;inset:0;background-image:radial-gradient(var(--paper-ink) 1px,transparent 1.5px);background-size:7px 7px;opacity:.16}
+
+/* ===== unified card cover (home rows + listing grid) ===== */
+.cover-art{position:relative;border-radius:14px;overflow:hidden;aspect-ratio:3/4;display:grid;place-items:center;border:1px solid rgba(0,0,0,.05);transition:box-shadow .2s}
+.cover-art .ct{font-family:'Black Han Sans',sans-serif;font-size:20px;text-align:center;padding:0 10px;z-index:2;line-height:1.05}
+.cover-art.cv-manga{place-items:stretch}
+.cover-art.cv-manga::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 3px rgba(26,22,34,.82);border-radius:14px;z-index:3;pointer-events:none}
+.cover-art .mband{position:absolute;left:0;right:0;bottom:0;z-index:2;padding:10px 9px;color:#fff;font-family:'Black Han Sans',sans-serif;font-size:14px;line-height:1.12;text-align:center}
+.cover-art .rank{position:absolute;top:8px;left:8px;z-index:4;min-width:24px;height:24px;padding:0 5px;border-radius:7px;background:var(--ink);color:#fff;font-family:'Black Han Sans',sans-serif;font-size:14px;display:grid;place-items:center}
+.cover-art .stat-badge{position:absolute;top:8px;right:8px;z-index:4;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;padding:3px 7px;border-radius:6px}
+.stat-badge.on{background:var(--glow-2);color:#fff}
+.stat-badge.done{background:rgba(26,22,34,.72);color:#fff}
+.stat-badge.new{background:var(--spot);color:#fff}
+
+.row{display:flex;gap:18px;overflow-x:auto;padding:6px 4px 18px;scroll-snap-type:x mandatory;scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+.row::-webkit-scrollbar{height:7px}.row::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:10px}
+.wcard{flex:0 0 174px;scroll-snap-align:start;cursor:pointer;transition:transform .2s}
+.wcard:hover{transform:translateY(-6px)}
+.wcard:hover .cover-art{box-shadow:0 22px 34px -18px rgba(40,30,60,.4)}
+.cardinfo{margin-top:11px}
+.cardinfo .n{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cardinfo .m{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-top:3px}
+.cardinfo .star{color:#F0A93B}
+
+.block{padding:18px 0 30px}
+.head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:18px;gap:16px;flex-wrap:wrap}
+.head .titles{display:flex;flex-direction:column;gap:6px}
+.head .kicker{font-family:'Space Mono',monospace;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--spot-deep)}
+.head h2{font-family:'Black Han Sans',sans-serif;font-weight:400;font-size:clamp(23px,3.2vw,32px);letter-spacing:-.3px}
+.head .more{font-size:13px;color:var(--muted);font-weight:600;white-space:nowrap;cursor:pointer}
+.head .more:hover{color:var(--spot-deep)}
+.seg{display:flex;gap:7px}
+.seg button{font-size:13px;font-weight:600;padding:7px 13px;border-radius:9px;border:1px solid var(--line-2);background:var(--surface);color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s}
+.seg button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+/* ===== search hero ===== */
+.aura{position:absolute;inset:0;top:0;height:520px;z-index:0;pointer-events:none;opacity:.75;overflow:hidden}
+.aura::before,.aura::after{content:"";position:absolute;border-radius:50%;filter:blur(130px)}
+.aura::before{width:520px;height:520px;top:-200px;left:50%;margin-left:-420px;background:radial-gradient(circle,rgba(124,77,239,.16),transparent 70%)}
+.aura::after{width:480px;height:480px;top:-160px;left:50%;margin-left:40px;background:radial-gradient(circle,rgba(255,62,100,.13),transparent 70%)}
+.search-hero{text-align:center;padding:74px 0 40px;position:relative;z-index:1}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-family:'Space Mono',monospace;font-size:12px;letter-spacing:1.5px;color:var(--spot-deep);text-transform:uppercase;margin-bottom:20px;border:1px solid rgba(255,62,100,.4);border-radius:30px;padding:6px 14px;background:rgba(255,62,100,.08)}
+.eyebrow .dot{width:6px;height:6px;background:var(--spot);border-radius:50%;animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+.search-hero h1{font-family:'Black Han Sans',sans-serif;font-weight:400;font-size:clamp(34px,5vw,58px);line-height:1.04;letter-spacing:-.5px}
+.search-hero h1 .accent{background:linear-gradient(100deg,var(--glow) 5%,var(--spot) 92%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.search-hero .sub{font-size:16px;color:var(--muted);margin-top:16px;line-height:1.6}
+.bigsearch{max-width:620px;margin:30px auto 0;display:flex;align-items:center;gap:13px;background:var(--surface);border:1px solid var(--line-2);border-radius:18px;padding:17px 22px;box-shadow:0 24px 50px -28px rgba(60,40,90,.4);transition:border-color .2s,box-shadow .2s}
+.bigsearch:focus-within{border-color:var(--glow);box-shadow:0 24px 50px -24px rgba(124,77,239,.45)}
+.bigsearch svg{color:var(--spot);flex-shrink:0}
+.bigsearch input{flex:1;background:none;border:none;outline:none;font-family:inherit;font-size:16px;color:var(--ink)}
+.bigsearch input::placeholder{color:var(--muted-2)}
+.bigsearch .go-s{background:linear-gradient(100deg,var(--glow),var(--spot));color:#fff;border:none;border-radius:11px;padding:10px 18px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;flex-shrink:0}
+.quick{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-top:18px}
+.quick .ql{font-size:12px;color:var(--muted-2);align-self:center;font-family:'Space Mono',monospace}
+.qchip{font-size:13px;padding:7px 14px;border-radius:30px;background:var(--surface);border:1px solid var(--line-2);color:var(--ink-soft);cursor:pointer;transition:all .15s}
+.qchip:hover{border-color:var(--spot);color:var(--spot-deep);transform:translateY(-1px)}
+
+/* ===== LISTING (anime/manga main) ===== */
+.list-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:24px 0 16px;flex-wrap:wrap}
+.list-head .lt{font-family:'Black Han Sans',sans-serif;font-weight:400;font-size:clamp(28px,4vw,40px);letter-spacing:-.4px;display:flex;align-items:baseline;gap:11px}
+.list-head .lt .cnt{font-family:'Space Mono',monospace;font-size:14px;color:var(--muted);font-weight:400}
+.sortbar{display:flex;align-items:center}
+.sortbar button{background:none;border:none;font-family:inherit;font-size:13.5px;color:var(--muted);cursor:pointer;padding:4px 13px;position:relative;transition:color .15s}
+.sortbar button:hover{color:var(--ink-soft)}
+.sortbar button.on{color:var(--ink);font-weight:700}
+.sortbar button+button::before{content:"";position:absolute;left:0;top:50%;transform:translateY(-50%);height:11px;width:1px;background:var(--line-2)}
+.genre-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:26px}
+.gchip{font-size:13px;padding:7px 14px;border-radius:30px;background:var(--surface);border:1px solid var(--line-2);color:var(--ink-soft);cursor:pointer;transition:all .15s}
+.gchip:hover{border-color:var(--muted-2)}
+.gchip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:24px 18px;padding-bottom:50px}
+.gcard{cursor:pointer;transition:transform .2s}
+.gcard:hover{transform:translateY(-6px)}
+.gcard:hover .cover-art{box-shadow:0 22px 36px -18px rgba(40,30,60,.42)}
+.gcard .gtitle{font-weight:600;font-size:13.5px;margin-top:11px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:37px}
+.gcard .gsub{font-size:12px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gcard .gstar{color:#F0A93B;flex-shrink:0}
+
+/* ===================== LOGIN ===================== */
+#view-login{min-height:100vh;grid-template-columns:1.05fr .95fr}
+.brand-panel{position:relative;overflow:hidden;background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;justify-content:space-between;padding:46px 52px}
+.brand-panel::before{content:"";position:absolute;width:520px;height:520px;border-radius:50%;filter:blur(120px);top:-160px;left:-120px;background:radial-gradient(circle,rgba(124,77,239,.18),transparent 70%)}
+.brand-panel::after{content:"";position:absolute;width:460px;height:460px;border-radius:50%;filter:blur(120px);bottom:-160px;right:-120px;background:radial-gradient(circle,rgba(255,62,100,.15),transparent 70%)}
+.bp-mid{position:relative;z-index:1;max-width:440px}
+.bp-eyebrow{font-family:'Space Mono',monospace;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--spot-deep);margin-bottom:18px}
+.bp-mid h1{font-family:'Black Han Sans',sans-serif;font-weight:400;font-size:clamp(34px,4vw,52px);line-height:1.04;letter-spacing:-.5px}
+.bp-mid h1 .accent{background:linear-gradient(100deg,var(--glow),var(--spot));-webkit-background-clip:text;background-clip:text;color:transparent}
+.bp-mid p{font-size:16px;color:var(--muted);margin-top:16px;line-height:1.7}
+.mini-bridge{margin-top:34px;background:var(--surface-2);border:1px solid var(--line-2);border-radius:18px;padding:16px;display:flex;align-items:center;gap:12px;max-width:430px;box-shadow:0 20px 40px -26px rgba(60,40,90,.4)}
+.mb-cover{width:64px;aspect-ratio:3/4;border-radius:10px;display:grid;place-items:center;flex-shrink:0;overflow:hidden}
+.mb-cover .t{font-family:'Black Han Sans',sans-serif;font-size:12px;text-align:center;line-height:1.05;z-index:2;padding:0 4px}
+.mb-cover.cv-anime{background:linear-gradient(150deg,#5B2BD6,#9D3CE0 55%,#2D6BD4)}
+.mb-cover.cv-anime::after{background:repeating-linear-gradient(115deg,rgba(255,255,255,.07) 0 2px,transparent 2px 10px)}
+.mb-cover.cv-manga::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 2px rgba(26,22,34,.8);border-radius:10px}
+.mb-seam{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px}
+.mb-seam .coord{font-family:'Black Han Sans',sans-serif;font-size:15px;color:var(--ink);white-space:nowrap}
+.mb-seam .coord b{color:var(--spot-deep)}
+.mb-seam .arrow{display:flex;align-items:center;width:100%;color:var(--spot)}
+.mb-seam .arrow .ln{flex:1;height:2px;background:repeating-linear-gradient(90deg,var(--spot) 0 5px,transparent 5px 9px)}
+.mb-seam .lbl{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.5px}
+.bp-foot{position:relative;z-index:1;font-size:12px;color:var(--muted-2)}
+.auth-panel{display:flex;align-items:center;justify-content:center;padding:40px}
+.auth-card{width:100%;max-width:400px}
+.auth-card .hi{font-family:'Black Han Sans',sans-serif;font-weight:400;font-size:30px;text-align:center;letter-spacing:-.3px}
+.auth-card .sub{text-align:center;color:var(--muted);font-size:14.5px;margin-top:10px;line-height:1.6}
+.social{display:flex;flex-direction:column;gap:11px;margin-top:30px}
+.sbtn{display:flex;align-items:center;justify-content:center;gap:10px;position:relative;height:52px;border-radius:13px;border:1px solid transparent;font-family:inherit;font-weight:600;font-size:15px;cursor:pointer;transition:transform .15s,box-shadow .15s}
+.sbtn:hover{transform:translateY(-2px)}
+.sbtn .ic{position:absolute;left:18px;width:22px;height:22px;display:grid;place-items:center}
+.sbtn.kakao{background:#FEE500;color:#191600}
+.sbtn.kakao:hover{box-shadow:0 12px 24px -10px rgba(254,229,0,.8)}
+.sbtn.naver{background:#03C75A;color:#fff}
+.sbtn.naver:hover{box-shadow:0 12px 24px -10px rgba(3,199,90,.7)}
+.sbtn.naver .ic{font-family:'Black Han Sans',sans-serif;font-size:16px}
+.sbtn.google{background:var(--surface);color:var(--ink);border-color:var(--line-2)}
+.sbtn.google:hover{box-shadow:0 12px 24px -12px rgba(40,30,60,.4);border-color:var(--muted-2)}
+.auth-alt{text-align:center;margin-top:22px;font-size:13.5px;color:var(--muted)}
+.auth-alt a{color:var(--spot-deep);font-weight:600;cursor:pointer}
+.auth-help{text-align:center;margin-top:10px;font-size:13px;color:var(--muted-2)}
+.auth-terms{text-align:center;margin-top:30px;font-size:12px;color:var(--muted-2);line-height:1.7}
+.auth-terms a{color:var(--muted);text-decoration:underline;text-underline-offset:2px}
+
+/* ===================== DETAIL ===================== */
+.crumb{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);padding:22px 0 0}
+.crumb a{cursor:pointer}.crumb a:hover{color:var(--spot-deep)}
+.crumb .sep{color:var(--line-2)}
+.crumb .cur{color:var(--ink-soft);font-weight:500}
+.dhero{position:relative;margin-top:18px;border-radius:24px;overflow:hidden;border:1px solid var(--line-2);background:var(--surface)}
+.dhero .banner{position:relative;height:250px;overflow:hidden}
+.dhero .banner .bg{position:absolute;inset:0}
+.dhero .banner .scrim{position:absolute;inset:0}
+.dhero.anime .banner .bg::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(115deg,rgba(255,255,255,.06) 0 2px,transparent 2px 16px)}
+.dhero.anime .banner .scrim{background:linear-gradient(180deg,rgba(0,0,0,.05),rgba(247,245,244,.2) 55%,var(--surface) 100%)}
+.dhero.manga .banner .bg{background:var(--paper)}
+.dhero.manga .banner .bg::before{content:"";position:absolute;inset:0;background-image:radial-gradient(var(--paper-ink) 1px,transparent 1.6px);background-size:9px 9px;opacity:.13}
+.dhero.manga .banner .scrim{background:linear-gradient(180deg,rgba(241,233,218,0),rgba(247,245,244,.5) 60%,var(--surface) 100%)}
+.dhero .body{display:flex;gap:28px;padding:0 32px 30px;margin-top:-118px;position:relative;z-index:2}
+.poster{flex-shrink:0;width:184px;aspect-ratio:3/4;border-radius:16px;overflow:hidden;display:grid;place-items:center;box-shadow:0 24px 44px -20px rgba(30,20,50,.5);border:1px solid rgba(0,0,0,.06)}
+.poster .pt{font-family:'Black Han Sans',sans-serif;font-size:30px;text-align:center;line-height:1.04;z-index:2;padding:0 10px}
+.poster.cv-manga::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 3px rgba(26,22,34,.85);border-radius:16px}
+.poster .ribbon{position:absolute;top:11px;left:11px;z-index:3;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.5px;padding:3px 8px;border-radius:6px;font-weight:700}
+.poster.cv-anime .ribbon{background:rgba(0,0,0,.4);color:#fff;border:1px solid rgba(255,255,255,.3)}
+.poster.cv-manga .ribbon{background:var(--paper-ink);color:var(--paper)}
+.headinfo{flex:1;padding-top:126px}
+.kind{display:inline-flex;align-items:center;gap:7px;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;font-weight:700;margin-bottom:10px;padding:4px 11px;border-radius:30px}
+.kind.anime{color:var(--glow);background:rgba(124,77,239,.1);border:1px solid rgba(124,77,239,.3)}
+.kind.manga{color:var(--spot-deep);background:rgba(255,62,100,.08);border:1px solid rgba(255,62,100,.3)}
+.headinfo h1{font-family:'Black Han Sans',sans-serif;font-weight:400;font-size:clamp(30px,4.4vw,46px);line-height:1.02;letter-spacing:-.5px}
+.headinfo .orig{font-size:15px;color:var(--muted);margin-top:4px}
+.metarow{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.chip{font-size:12.5px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:5px 11px;color:var(--ink-soft)}
+.chip b{color:var(--ink);font-weight:600}
+.chip.status-done{background:rgba(26,22,34,.06)}
+.statline{display:flex;align-items:center;gap:18px;margin-top:18px}
+.rate{display:flex;align-items:center;gap:8px}
+.rate .star{color:#F0A93B;font-size:20px}.rate .num{font-family:'Black Han Sans',sans-serif;font-size:24px}.rate .cnt{font-size:12px;color:var(--muted)}
+.actions{display:flex;gap:10px;margin-left:auto}
+.btn{display:inline-flex;align-items:center;gap:7px;font-family:inherit;font-weight:600;font-size:14px;padding:11px 16px;border-radius:11px;border:1px solid var(--line-2);background:var(--surface);color:var(--ink);cursor:pointer;transition:transform .15s,border-color .15s}
+.btn:hover{transform:translateY(-1px);border-color:var(--muted-2)}
+.cols{display:grid;grid-template-columns:1fr 330px;gap:30px;padding:34px 0 56px;align-items:start}
+.section{margin-bottom:32px}
+.sec-head{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.sec-head .bar-i{width:4px;height:20px;border-radius:3px;background:linear-gradient(var(--glow),var(--spot))}
+.sec-head h2{font-family:'Black Han Sans',sans-serif;font-weight:400;font-size:22px;letter-spacing:-.2px}
+.sec-head .count{font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);margin-left:auto}
+.prose{font-size:15px;color:var(--ink-soft);line-height:1.85}
+.tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.tag{font-size:13px;padding:6px 12px;border-radius:30px;background:var(--surface);border:1px solid var(--line-2);color:var(--ink-soft);cursor:pointer;transition:border-color .15s,color .15s}
+.tag:hover{border-color:var(--spot);color:var(--spot-deep)}
+.tag .h{color:var(--muted)}
+.tabs{display:flex;gap:8px;margin-bottom:16px}
+.tab{font-size:13px;font-weight:600;padding:8px 15px;border-radius:10px;border:1px solid var(--line-2);background:var(--surface);color:var(--muted);cursor:pointer;transition:all .15s}
+.tab.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+.player{position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;display:grid;place-items:center;border:1px solid var(--line-2)}
+.player .thumb{position:absolute;inset:0}
+.player .thumb::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(115deg,rgba(255,255,255,.05) 0 2px,transparent 2px 15px)}
+.player .scrim2{position:absolute;inset:0;background:radial-gradient(circle at center,rgba(0,0,0,.15),rgba(0,0,0,.45))}
+.player .play{position:relative;z-index:2;width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.95);display:grid;place-items:center;cursor:pointer;transition:transform .18s,box-shadow .18s;box-shadow:0 12px 30px -8px rgba(0,0,0,.5)}
+.player .play:hover{transform:scale(1.08);box-shadow:0 16px 36px -8px rgba(255,62,100,.6)}
+.player .play svg{margin-left:4px;color:var(--spot-deep)}
+.player .ytlabel{position:absolute;bottom:12px;left:14px;z-index:2;display:flex;align-items:center;gap:7px;font-family:'Space Mono',monospace;font-size:11px;color:#fff;background:rgba(0,0,0,.5);padding:5px 10px;border-radius:7px}
+.player .dur{position:absolute;bottom:12px;right:14px;z-index:2;font-family:'Space Mono',monospace;font-size:11px;color:#fff;background:rgba(0,0,0,.6);padding:4px 8px;border-radius:6px}
+.note{font-size:12px;color:var(--muted-2);margin-top:10px;display:flex;align-items:center;gap:6px}
+.author{display:flex;gap:16px;background:var(--surface);border:1px solid var(--line-2);border-radius:16px;padding:18px}
+.author .ava{width:62px;height:62px;border-radius:14px;flex-shrink:0;background:var(--paper);position:relative;display:grid;place-items:center;font-family:'Black Han Sans',sans-serif;font-size:24px;color:var(--paper-ink)}
+.author .ava::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 2px rgba(26,22,34,.8);border-radius:14px}
+.author .info .role{font-family:'Space Mono',monospace;font-size:11px;color:var(--spot-deep);letter-spacing:.5px;text-transform:uppercase}
+.author .info .name{font-weight:700;font-size:17px;margin:2px 0 6px}
+.author .info p{font-size:13.5px;color:var(--muted);line-height:1.7}
+.vol{border:1px solid var(--line-2);border-radius:14px;overflow:hidden;background:var(--surface)}
+.vrow{display:flex;align-items:center;gap:14px;padding:13px 16px;border-bottom:1px solid var(--line);transition:background .15s;cursor:pointer}
+.vrow:last-child{border-bottom:none}.vrow:hover{background:var(--surface-2)}
+.vrow .vn{flex-shrink:0;width:46px;height:60px;border-radius:8px;background:var(--paper);position:relative;display:grid;place-items:center;font-family:'Black Han Sans',sans-serif;font-size:16px;color:var(--paper-ink)}
+.vrow .vn::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 2px rgba(26,22,34,.75);border-radius:8px}
+.vrow .vmeta{flex:1;min-width:0}
+.vrow .vmeta .vt{font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vrow .vmeta .vs{font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);margin-top:2px}
+.vrow .vr{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:4px;flex-shrink:0}
+.vrow .vr .star{color:#F0A93B}
+.vrow.continue{background:linear-gradient(90deg,rgba(255,62,100,.07),transparent)}
+.vrow.continue .vn{box-shadow:0 0 0 2px var(--spot)}
+.vrow .cflag{flex-shrink:0;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;color:#fff;background:var(--spot);padding:3px 8px;border-radius:6px}
+.vmore{text-align:center;padding:13px;font-size:13px;color:var(--muted);font-weight:600;cursor:pointer}
+.vmore:hover{color:var(--spot-deep)}
+.aside{position:sticky;top:88px;display:flex;flex-direction:column;gap:18px}
+.bridge-box{background:var(--surface);border:1px solid var(--line-2);border-radius:20px;overflow:hidden;box-shadow:0 24px 44px -28px rgba(60,40,90,.35)}
+.bridge-box .top{padding:16px 18px;background:linear-gradient(120deg,rgba(124,77,239,.08),rgba(255,62,100,.06));border-bottom:1px solid var(--line)}
+.bridge-box .top .lab{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--spot-deep);font-weight:700}
+.bridge-box .top .ttl{font-family:'Black Han Sans',sans-serif;font-size:19px;margin-top:5px;line-height:1.15}
+.bridge-box .mid{padding:18px}
+.linkcover{display:flex;gap:14px;align-items:center}
+.linkcover .lc{width:78px;aspect-ratio:3/4;border-radius:10px;flex-shrink:0;display:grid;place-items:center;overflow:hidden}
+.linkcover .lc .lct{font-family:'Black Han Sans',sans-serif;font-size:15px;text-align:center;line-height:1.05;z-index:2;padding:0 5px}
+.linkcover .lc.cv-manga::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 2px rgba(26,22,34,.8);border-radius:10px}
+.linkcover .ld .ln{font-weight:700;font-size:15px}
+.linkcover .ld .lm{font-size:12.5px;color:var(--muted);margin-top:3px}
+.coordbox{margin-top:16px;display:flex;align-items:center;gap:11px;background:var(--surface-2);border:1px dashed var(--line-2);border-radius:12px;padding:13px}
+.coordbox .ic{width:32px;height:32px;border-radius:9px;background:var(--spot);color:#fff;display:grid;place-items:center;flex-shrink:0;box-shadow:0 6px 16px -4px rgba(255,62,100,.6)}
+.coordbox .ctxt .cl{font-size:11px;color:var(--muted);font-family:'Space Mono',monospace}
+.coordbox .ctxt .cv{font-weight:700;font-size:15px;margin-top:1px}
+.coordbox .ctxt .cv b{font-family:'Space Mono',monospace;color:var(--spot-deep)}
+.bridge-box .go{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:16px;background:linear-gradient(100deg,var(--glow),var(--spot));color:#fff;border:none;font-family:inherit;font-weight:700;font-size:15px;padding:14px;border-radius:13px;cursor:pointer;transition:transform .15s,box-shadow .15s;box-shadow:0 12px 26px -8px rgba(124,77,239,.45)}
+.bridge-box .go:hover{transform:translateY(-2px);box-shadow:0 18px 34px -8px rgba(255,62,100,.5)}
+.minicard{background:var(--surface);border:1px solid var(--line-2);border-radius:16px;padding:16px}
+.minicard h3{font-size:14px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.minicard h3::before{content:"";width:4px;height:15px;border-radius:3px;background:linear-gradient(var(--glow),var(--spot))}
+.infolist{display:flex;flex-direction:column;gap:9px}
+.infolist .ir{display:flex;justify-content:space-between;font-size:13px}
+.infolist .ir .k{color:var(--muted)}.infolist .ir .v{color:var(--ink);font-weight:500;text-align:right}
+.cmt{background:var(--surface);border:1px solid var(--line-2);border-radius:16px;padding:20px}
+.cmt .cin{display:flex;gap:10px;margin-bottom:18px}
+.cmt .cin .av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--glow),var(--spot));flex-shrink:0}
+.cmt .cin input{flex:1;background:var(--surface-2);border:1px solid var(--line-2);border-radius:11px;padding:0 14px;font-family:inherit;font-size:14px;outline:none}
+.cmt .cin input::placeholder{color:var(--muted-2)}
+.cmt .cin button{background:var(--ink);color:#fff;border:none;border-radius:11px;padding:0 18px;font-family:inherit;font-weight:600;font-size:14px;cursor:pointer}
+.citem{display:flex;gap:12px;padding:14px 0;border-top:1px solid var(--line)}
+.citem .cav{width:34px;height:34px;border-radius:50%;flex-shrink:0}
+.citem .cbody .cmeta{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.citem .cbody .cmeta .cu{font-weight:600;font-size:13.5px}
+.citem .cbody .cmeta .ct{font-size:11px;color:var(--muted-2)}
+.citem .cbody p{font-size:14px;color:var(--ink-soft);line-height:1.6}
+.citem .cbody .cact{display:flex;gap:14px;margin-top:7px;font-size:12px;color:var(--muted)}
+.citem .cbody .cact span{cursor:pointer}.citem .cbody .cact span:hover{color:var(--spot-deep)}
+/* emphasized mapping strip (anime detail MVP core) */
+.map-strip{display:flex;align-items:center;gap:16px;margin:0 0 34px;padding:16px 18px;border-radius:16px;border:1.5px solid var(--spot);background:linear-gradient(115deg,rgba(124,77,239,.12),rgba(255,62,100,.12));position:relative;z-index:2}
+.ms-cover{width:48px;aspect-ratio:3/4;border-radius:8px;flex-shrink:0;position:relative;overflow:hidden}
+.ms-cover.cv-manga::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 2px rgba(26,22,34,.8);border-radius:8px;z-index:3}
+.ms-cover .mband{position:absolute;left:0;right:0;bottom:0;z-index:2;padding:5px 3px;color:#fff;font-family:'Black Han Sans',sans-serif;font-size:9px;line-height:1.05;text-align:center}
+.ms-main{flex:1;min-width:0}
+.ms-label{font-size:13px;color:var(--ink-soft);font-weight:500}
+.ms-label b{color:var(--spot-deep);font-weight:700}
+.ms-coord{font-family:'Black Han Sans',sans-serif;font-size:26px;line-height:1.05;margin-top:3px;letter-spacing:-.3px}
+.ms-coord small{font-family:'IBM Plex Sans KR',sans-serif;font-size:14px;color:var(--muted);font-weight:400;margin-left:8px}
+.ms-cta{flex-shrink:0;display:inline-flex;align-items:center;gap:8px;background:linear-gradient(100deg,var(--glow),var(--spot));color:#fff;border:none;border-radius:12px;padding:13px 20px;font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;box-shadow:0 12px 26px -8px rgba(255,62,100,.5);transition:transform .15s,box-shadow .15s}
+.ms-cta:hover{transform:translateY(-2px);box-shadow:0 16px 32px -8px rgba(255,62,100,.6)}
+/* single-column detail body */
+.detail-body{max-width:860px;margin:0 auto;padding:36px 0 54px}
+/* external youtube link list */
+.vlinks{display:flex;flex-direction:column;gap:11px}
+.vlink{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--line-2);border-radius:14px;padding:11px 13px;cursor:pointer;text-decoration:none;color:inherit;transition:border-color .15s,transform .15s,box-shadow .15s}
+.vlink:hover{border-color:var(--spot);transform:translateY(-2px);box-shadow:0 16px 30px -18px rgba(40,30,60,.4)}
+.vthumb{width:112px;aspect-ratio:16/9;border-radius:9px;flex-shrink:0;position:relative;display:grid;place-items:center;overflow:hidden}
+.vthumb::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(115deg,rgba(255,255,255,.06) 0 2px,transparent 2px 13px)}
+.vthumb::after{content:"";position:absolute;inset:0;background:rgba(0,0,0,.25)}
+.vplay{position:relative;z-index:2;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.95);display:grid;place-items:center}
+.vmeta{flex:1;min-width:0}
+.vmeta .vt{font-weight:600;font-size:15px}
+.vmeta .vs{font-size:12.5px;color:var(--muted);margin-top:2px}
+.vyt{flex-shrink:0;display:inline-flex;align-items:center;gap:7px;font-weight:700;font-size:13px;color:var(--ink);border:1px solid var(--line-2);border-radius:10px;padding:9px 13px;transition:border-color .15s,color .15s}
+.vlink:hover .vyt{border-color:var(--spot);color:var(--spot-deep)}
+.vcard{border:1px solid var(--line-2);border-radius:16px;background:var(--surface);overflow:hidden}
+.vcard .tabs{margin:0;padding:14px 14px 0;gap:8px}
+.vcard .player{border:none;border-radius:12px;margin:14px;cursor:pointer}
+.vfoot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 16px 16px;flex-wrap:wrap}
+.vfoot-desc{font-size:12.5px;color:var(--muted);flex:1;min-width:180px}
+.vbtn-yt{display:inline-flex;align-items:center;gap:8px;background:var(--ink);color:#fff;border-radius:11px;padding:11px 16px;font-weight:700;font-size:14px;text-decoration:none;transition:transform .15s,box-shadow .15s}
+.vbtn-yt:hover{transform:translateY(-2px);box-shadow:0 12px 24px -8px rgba(26,22,34,.5)}
+.infogrid{display:grid;grid-template-columns:repeat(2,1fr);gap:0 28px;background:var(--surface);border:1px solid var(--line-2);border-radius:16px;padding:8px 20px}
+.infogrid .ig{display:flex;justify-content:space-between;gap:12px;font-size:14px;padding:11px 0;border-bottom:1px solid var(--line)}
+.infogrid .ig .k{color:var(--muted)}
+.infogrid .ig .v{color:var(--ink);font-weight:500;text-align:right}
+.vbar{display:flex;gap:12px;background:var(--surface);border:1px solid var(--line-2);border-radius:16px;padding:14px}
+.vbtn{flex:1;display:flex;align-items:center;justify-content:center;gap:9px;background:var(--surface-2);border:1px solid var(--line-2);border-radius:12px;padding:16px 14px;font-family:inherit;font-weight:700;font-size:15px;color:var(--ink);text-decoration:none;cursor:pointer;transition:border-color .15s,color .15s,transform .15s,box-shadow .15s}
+.vbtn:hover{border-color:var(--spot);color:var(--spot-deep);transform:translateY(-2px);box-shadow:0 12px 24px -14px rgba(255,62,100,.5)}
+.vbtn .ext{color:var(--muted-2)}
+.vbtn:hover .ext{color:var(--spot)}
+@media(max-width:560px){.vbar{flex-direction:column}}
+@media(max-width:560px){.infogrid{grid-template-columns:1fr}}
+@media(max-width:680px){.map-strip{margin:0 0 22px;flex-wrap:wrap}.ms-cta{width:100%;justify-content:center}.detail-body{padding:28px 0 44px}.vyt span{display:none}}
+
+/* ===================== MY PAGE ===================== */
+.profile{margin-top:28px;background:var(--surface);border:1px solid var(--line-2);border-radius:22px;padding:26px 28px;display:flex;align-items:center;gap:24px;position:relative;overflow:hidden;box-shadow:0 24px 44px -30px rgba(60,40,90,.3)}
+.profile::before{content:"";position:absolute;inset:0;background:radial-gradient(600px 160px at 12% 0%,rgba(124,77,239,.07),transparent 60%);pointer-events:none}
+.avatar{width:94px;height:94px;border-radius:50%;flex-shrink:0;position:relative;display:grid;place-items:center;background:linear-gradient(135deg,#5B2BD6,#9D3CE0 50%,#FF3E64);color:#fff;font-family:'Black Han Sans',sans-serif;font-size:34px;box-shadow:0 12px 28px -10px rgba(124,77,239,.6);z-index:1}
+.avatar::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--surface)}
+.p-info{flex:1;z-index:1}
+.p-info .pname{font-family:'Black Han Sans',sans-serif;font-weight:400;font-size:28px;letter-spacing:-.3px}
+.p-info .pmeta{font-size:13.5px;color:var(--muted);margin-top:5px;font-family:'Space Mono',monospace}
+.p-info .pbtns{display:flex;gap:9px;margin-top:15px}
+.pbtn{font-family:inherit;font-weight:600;font-size:13.5px;padding:9px 15px;border-radius:10px;border:1px solid var(--line-2);background:var(--surface);color:var(--ink-soft);cursor:pointer;transition:border-color .15s,transform .15s}
+.pbtn:hover{transform:translateY(-1px);border-color:var(--muted-2)}
+.pbtn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+.p-stats{display:flex;gap:8px;z-index:1}
+.stat{text-align:center;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:14px 20px;min-width:88px}
+.stat .n{font-family:'Black Han Sans',sans-serif;font-size:28px;line-height:1;background:linear-gradient(120deg,var(--glow),var(--spot));-webkit-background-clip:text;background-clip:text;color:transparent}
+.stat .l{font-size:12px;color:var(--muted);margin-top:6px}
+.msec{margin-top:40px}
+.msec-head{display:flex;align-items:center;gap:9px;margin-bottom:18px}
+.msec-head .ico{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--glow),var(--spot));display:grid;place-items:center;color:#fff;font-size:14px}
+.msec-head h2{font-family:'Black Han Sans',sans-serif;font-weight:400;font-size:21px;letter-spacing:-.2px}
+.msec-head .more{margin-left:auto;font-size:13px;color:var(--muted);font-weight:500;cursor:pointer}
+.msec-head .more:hover{color:var(--spot-deep)}
+.fav-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.fcard{cursor:pointer;transition:transform .2s}
+.fcard:hover{transform:translateY(-6px)}
+.fcard .art{border-radius:14px;overflow:hidden;aspect-ratio:3/4;display:grid;place-items:center;border:1px solid rgba(0,0,0,.05);transition:box-shadow .2s;position:relative}
+.fcard:hover .art{box-shadow:0 22px 36px -18px rgba(40,30,60,.4)}
+.fcard .art .ft{font-family:'Black Han Sans',sans-serif;font-size:19px;text-align:center;padding:0 10px;z-index:2;line-height:1.05}
+.fcard .art.cv-manga::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 3px rgba(26,22,34,.82);border-radius:14px}
+.kindtag{position:absolute;top:9px;left:9px;z-index:3;font-family:'Space Mono',monospace;font-size:9.5px;letter-spacing:.5px;font-weight:700;padding:3px 7px;border-radius:6px}
+.kindtag.anime{background:rgba(124,77,239,.9);color:#fff}
+.kindtag.manga{background:rgba(26,22,34,.82);color:var(--paper)}
+.fbadge{position:absolute;top:9px;right:9px;z-index:3;font-family:'Space Mono',monospace;font-size:9.5px;font-weight:700;padding:3px 7px;border-radius:6px}
+.fbadge.on{background:var(--glow-2);color:#fff}.fbadge.done{background:rgba(26,22,34,.7);color:#fff}.fbadge.new{background:var(--spot);color:#fff}
+.fcard .finfo{margin-top:10px}
+.fcard .finfo .fn{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fcard .finfo .fs{font-size:12px;color:var(--muted);margin-top:2px}
+.act-list{display:flex;flex-direction:column;gap:11px}
+.arow{display:flex;align-items:center;gap:15px;background:var(--surface);border:1px solid var(--line-2);border-radius:15px;padding:13px 16px;transition:border-color .15s,transform .15s;cursor:pointer}
+.arow:hover{border-color:var(--muted-2);transform:translateX(2px)}
+.athumb{width:52px;height:52px;border-radius:11px;flex-shrink:0;overflow:hidden;display:grid;place-items:center;position:relative}
+.athumb.cv-manga::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 2px rgba(26,22,34,.78);border-radius:11px}
+.athumb .ai{font-family:'Black Han Sans',sans-serif;font-size:13px;z-index:2;text-align:center;line-height:1}
+.athumb.cv-manga .ai{color:var(--paper-ink)}
+.abody{flex:1;min-width:0}
+.abody .akind{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.5px;color:var(--spot-deep);text-transform:uppercase}
+.abody .atitle{font-weight:600;font-size:14.5px;margin:1px 0 3px}
+.abody .atext{font-size:13.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.abody .atext.review{color:var(--ink-soft)}
+.atime{font-family:'Space Mono',monospace;font-size:12px;color:var(--muted-2);flex-shrink:0;white-space:nowrap}
+
+footer{border-top:1px solid var(--line);margin-top:50px;padding:34px 0;background:var(--surface)}
+body[data-view="login"] footer{display:none}
+.foot{max-width:1160px;margin:0 auto;padding:0 28px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted)}
+.foot .fl{display:flex;gap:18px}.foot a{cursor:pointer}.foot a:hover{color:var(--spot-deep)}
+.fab{position:fixed;right:26px;bottom:26px;z-index:60;display:flex;align-items:center;gap:11px;background:linear-gradient(120deg,var(--glow),var(--spot));color:#fff;border:none;cursor:pointer;border-radius:50px;padding:13px 20px 13px 15px;font-family:inherit;font-weight:700;font-size:14px;box-shadow:0 16px 32px -8px rgba(124,77,239,.5);transition:transform .18s}
+.fab:hover{transform:translateY(-3px)}
+body[data-view="login"] .fab{display:none}
+.fab .ai{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.22);display:grid;place-items:center;font-size:16px}
+
+@media(max-width:1000px){.grid{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:920px){.cols{grid-template-columns:1fr}.aside{position:static}.dhero .body{flex-direction:column;margin-top:-86px;align-items:center;text-align:center;padding-bottom:26px}.poster{width:148px}.headinfo{padding-top:0}.metarow,.statline,.tags{justify-content:center}.actions{margin-left:0}.fav-grid{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:880px){#view-login{grid-template-columns:1fr}.brand-panel{display:none}}
+@media(max-width:680px){.bar{flex-wrap:wrap;padding:11px 18px}.search{order:3;max-width:none;flex-basis:100%}.wrap{padding:0 18px}.grid{grid-template-columns:repeat(2,1fr)}.profile{flex-direction:column;text-align:center}.p-info .pbtns,.p-stats{justify-content:center}.list-head{align-items:flex-start}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body data-view="login">
+
+<header>
+  <div class="bar">
+    <div class="logo" onclick="go('home')"><span class="glyph"></span><span><span class="word">애<b>만</b>보</span><div class="tag">애니 보고 · 만화 보고</div></span></div>
+    <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input placeholder="애니나 만화 제목을 검색하세요"></label>
+    <nav class="nav">
+      <a onclick="go('home')">홈</a>
+      <a onclick="go('anime-list')">애니</a>
+      <a onclick="go('manga-list')">만화</a>
+      <a onclick="go('mypage')">마이페이지</a>
+      <div class="uic" onclick="go('mypage')" title="마이페이지"></div>
+    </nav>
+  </div>
+</header>
+
+<!-- ===================== LOGIN ===================== -->
+<section class="view active" id="view-login">
+  <div class="brand-panel">
+    <div class="logo" style="position:relative;z-index:1"><span class="glyph"></span><span class="word" style="font-size:23px">애<b>만</b>보</span></div>
+    <div class="bp-mid">
+      <div class="bp-eyebrow">// 애니 보고 · 만화 보고</div>
+      <h1>애니 다음은,<br><span class="accent">원작에서.</span></h1>
+      <p>애니가 멈춘 바로 그 장면부터 원작 만화 몇 권 몇 화인지, 애만보가 정확히 짚어드려요.</p>
+      <div class="mini-bridge">
+        <div class="mb-cover cv-anime"><span class="t">주술<br>회전</span></div>
+        <div class="mb-seam"><span class="coord">원작 <b>8권 64화</b>부터</span><span class="arrow"><span class="ln"></span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span><span class="lbl">ANIME → MANGA</span></div>
+        <div class="mb-cover cv-manga"><span class="t">주술<br>회전</span></div>
+      </div>
+    </div>
+    <div class="bp-foot">© 2026 애만보 — 모든 매핑 정보는 검수 후 제공됩니다.</div>
+  </div>
+  <div class="auth-panel">
+    <div class="auth-card">
+      <div class="hi">반가워요!</div>
+      <p class="sub">3초면 시작할 수 있어요.<br>소셜 계정으로 바로 들어가세요.</p>
+      <div class="social">
+        <button class="sbtn kakao" onclick="go('home')"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="#191600"><path d="M12 3C6.5 3 2 6.5 2 10.8c0 2.8 1.9 5.2 4.7 6.6-.2.7-.7 2.6-.8 3-.1.5.2.5.4.4.2-.1 2.6-1.8 3.7-2.5.6.1 1.3.1 2 .1 5.5 0 10-3.5 10-7.8C22 6.5 17.5 3 12 3z"/></svg></span>카카오로 시작하기</button>
+        <button class="sbtn naver" onclick="go('home')"><span class="ic">N</span>네이버로 시작하기</button>
+        <button class="sbtn google" onclick="go('home')"><span class="ic"><svg width="19" height="19" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.5 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.9a5 5 0 0 1-2.2 3.3v2.7h3.6c2.1-2 3.2-4.9 3.2-7.8z"/><path fill="#34A853" d="M12 23c2.9 0 5.4-1 7.2-2.6l-3.6-2.7c-1 .7-2.3 1.1-3.6 1.1-2.8 0-5.1-1.9-6-4.4H2.3v2.8A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M6 14.4a6.6 6.6 0 0 1 0-4.2V7.4H2.3a11 11 0 0 0 0 9.8L6 14.4z"/><path fill="#EA4335" d="M12 5.5c1.6 0 3 .5 4.1 1.6l3.1-3.1A11 11 0 0 0 12 1a11 11 0 0 0-9.7 6l3.7 2.8c.9-2.6 3.2-4.3 6-4.3z"/></svg></span>Google로 계속하기</button>
+      </div>
+      <div class="auth-alt">이미 계정이 있으신가요? <a onclick="go('home')">로그인</a></div>
+      <div class="auth-help">로그인에 문제가 있나요?</div>
+      <div class="auth-terms">계속 진행하면 애만보의 <a>이용약관</a> 및 <a>개인정보처리방침</a>에<br>동의하게 됩니다.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== HOME ===================== -->
+<section class="view" id="view-home">
+  <div class="aura"></div>
+  <div class="wrap">
+    <section class="search-hero">
+      <div class="eyebrow"><span class="dot"></span>애니 보고 · 만화 보고</div>
+      <h1>무엇을 찾고<br>계신가요?</h1>
+      <p class="sub">제목을 검색하면 <b style="color:var(--ink-soft)">애니 ↔ 원작 만화 이어보기 정보</b>까지 한 번에.</p>
+      <div class="bigsearch">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input placeholder="애니메이션, 만화, 작가 이름으로 검색…">
+        <button class="go-s" onclick="go('anime-list')">검색</button>
+      </div>
+      <div class="quick">
+        <span class="ql">인기 검색</span>
+        <span class="qchip" onclick="go('anime-list')">주술회전</span>
+        <span class="qchip" onclick="go('anime-list')">진격의 거인</span>
+        <span class="qchip" onclick="go('manga-list')">체인소 맨</span>
+        <span class="qchip" onclick="go('anime-list')">#액션</span>
+        <span class="qchip" onclick="go('anime-list')">#신작</span>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="head">
+        <div class="titles"><span class="kicker">// THIS SEASON</span><h2>분기별 인기 애니</h2></div>
+        <div style="display:flex;align-items:center;gap:16px">
+          <div class="seg" id="seasonAnime">
+            <button class="on" onclick="seasonAnime('pop',this)">2026 봄</button>
+            <button onclick="seasonAnime('rating',this)">2026 겨울</button>
+            <button onclick="seasonAnime('recent',this)">2025 가을</button>
+          </div>
+          <span class="more" onclick="go('anime-list')">전체 애니 ›</span>
+        </div>
+      </div>
+      <div class="row" id="homeAnimeRow"></div>
+    </section>
+
+    <section class="block">
+      <div class="head">
+        <div class="titles"><span class="kicker">// THIS QUARTER</span><h2>분기별 인기 만화</h2></div>
+        <div style="display:flex;align-items:center;gap:16px">
+          <div class="seg" id="seasonManga">
+            <button class="on" onclick="seasonManga('pop',this)">2026 2Q</button>
+            <button onclick="seasonManga('rating',this)">2026 1Q</button>
+            <button onclick="seasonManga('recent',this)">2025 4Q</button>
+          </div>
+          <span class="more" onclick="go('manga-list')">전체 만화 ›</span>
+        </div>
+      </div>
+      <div class="row" id="homeMangaRow"></div>
+    </section>
+  </div>
+</section>
+
+<!-- ===================== ANIME LIST (main) ===================== -->
+<section class="view" id="view-anime-list">
+  <div class="wrap">
+    <div class="crumb"><a onclick="go('home')">홈</a><span class="sep">/</span><span class="cur">애니메이션</span></div>
+    <div class="list-head">
+      <div class="lt">애니메이션 <span class="cnt" id="animeCount"></span></div>
+      <div class="sortbar">
+        <button class="on" onclick="sortList('anime','name',this)">가나다순</button>
+        <button onclick="sortList('anime','pop',this)">인기순</button>
+        <button onclick="sortList('anime','recent',this)">최신순</button>
+        <button onclick="sortList('anime','rating',this)">평점순</button>
+      </div>
+    </div>
+    <div class="genre-row" id="animeGenres"></div>
+    <div class="grid" id="animeGrid"></div>
+  </div>
+</section>
+
+<!-- ===================== MANGA LIST (main) ===================== -->
+<section class="view" id="view-manga-list">
+  <div class="wrap">
+    <div class="crumb"><a onclick="go('home')">홈</a><span class="sep">/</span><span class="cur">만화</span></div>
+    <div class="list-head">
+      <div class="lt">만화 <span class="cnt" id="mangaCount"></span></div>
+      <div class="sortbar">
+        <button class="on" onclick="sortList('manga','name',this)">가나다순</button>
+        <button onclick="sortList('manga','pop',this)">인기순</button>
+        <button onclick="sortList('manga','recent',this)">최신순</button>
+        <button onclick="sortList('manga','rating',this)">평점순</button>
+      </div>
+    </div>
+    <div class="genre-row" id="mangaGenres"></div>
+    <div class="grid" id="mangaGrid"></div>
+  </div>
+</section>
+
+<!-- ===================== ANIME DETAIL ===================== -->
+<section class="view" id="view-anime">
+  <div class="wrap">
+    <div class="crumb"><a onclick="go('home')">홈</a><span class="sep">/</span><a onclick="go('anime-list')">애니</a><span class="sep">/</span><span class="cur">주술회전 1기</span></div>
+
+    <!-- HERO (포스터) -->
+    <div class="dhero anime">
+      <div class="banner"><div class="bg" style="background:linear-gradient(135deg,#5B2BD6,#9D3CE0 50%,#2D6BD4)"></div><div class="scrim"></div></div>
+      <div class="body">
+        <div class="poster cv-anime" style="background:linear-gradient(150deg,#5B2BD6,#9D3CE0 55%,#2D6BD4)"><span class="ribbon">TVA · S1</span><span class="pt">주술<br>회전</span></div>
+        <div class="headinfo">
+          <span class="kind anime">● 애니메이션</span>
+          <h1>주술회전 1기</h1>
+          <div class="orig">呪術廻戦 · Jujutsu Kaisen</div>
+          <div class="metarow"><span class="chip">유형 <b>TVA</b></span><span class="chip">방영 <b>2020</b></span><span class="chip">화수 <b>24화</b></span><span class="chip">제작 <b>MAPPA</b></span><span class="chip status-done">완결</span></div>
+          <div class="statline"><div class="rate"><span class="star">★</span><span class="num">4.7</span><span class="cnt">120명 평가</span></div><div class="actions"><button class="btn">♡ 찜하기</button><button class="btn">↗ 공유</button></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BODY: 줄거리 → 매핑 배너 → 공식 영상 → 작품 정보 → 감상평 -->
+    <div class="detail-body">
+      <!-- 줄거리 -->
+      <div class="section">
+        <div class="sec-head"><span class="bar-i"></span><h2>줄거리</h2></div>
+        <p class="prose">평범한 고등학생 이타도리 유지는 친구를 구하려다 강력한 저주의 일부를 삼키게 되고, 그 순간부터 저주를 다루는 주술사들의 세계에 발을 들인다. 도쿄 주술고등전문학교에 입학한 그는 동료들과 함께 사람을 해치는 저주를 퇴치하며, 자신이 짊어진 운명의 무게를 마주해 나간다.</p>
+        <div class="tags"><span class="tag"><span class="h">#</span>액션</span><span class="tag"><span class="h">#</span>다크판타지</span><span class="tag"><span class="h">#</span>초능력</span><span class="tag"><span class="h">#</span>학원</span><span class="tag"><span class="h">#</span>배틀</span></div>
+      </div>
+
+      <!-- ★ 애니-만화 매핑 (MVP 핵심, 강조) -->
+      <div class="map-strip">
+        <div class="ms-cover cv-manga"><span class="mband" style="background:#7C4DEF">주술회전</span></div>
+        <div class="ms-main">
+          <div class="ms-label">📚 애니 1기를 다 봤다면, <b>원작 만화는</b></div>
+          <div class="ms-coord">8권 64화<small>부터 이어 보세요</small></div>
+        </div>
+        <button class="ms-cta" onclick="go('manga')">원작 만화 보기
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+
+      <!-- 공식 영상 (배너 하나에 버튼 3개, 유튜브 외부 연결) -->
+      <div class="section">
+        <div class="sec-head"><span class="bar-i"></span><h2>공식 영상</h2><span class="count">YouTube로 연결</span></div>
+        <div class="vbar">
+          <a class="vbtn" href="https://www.youtube.com/results?search_query=%EC%A3%BC%EC%88%A0%ED%9A%8C%EC%A0%84+PV" target="_blank" rel="noopener"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M23 12s0-3.8-.5-5.6a3 3 0 0 0-2.1-2.1C18.6 3.8 12 3.8 12 3.8s-6.6 0-8.4.5a3 3 0 0 0-2.1 2.1C1 8.2 1 12 1 12s0 3.8.5 5.6a3 3 0 0 0 2.1 2.1c1.8.5 8.4.5 8.4.5s6.6 0 8.4-.5a3 3 0 0 0 2.1-2.1C23 15.8 23 12 23 12z" fill="#FF0000"/><path d="M10 15.5l5-3.5-5-3.5z" fill="#fff"/></svg><span>트레일러</span><svg class="ext" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+          <a class="vbtn" href="https://www.youtube.com/results?search_query=%EC%A3%BC%EC%88%A0%ED%9A%8C%EC%A0%84+OP" target="_blank" rel="noopener"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M23 12s0-3.8-.5-5.6a3 3 0 0 0-2.1-2.1C18.6 3.8 12 3.8 12 3.8s-6.6 0-8.4.5a3 3 0 0 0-2.1 2.1C1 8.2 1 12 1 12s0 3.8.5 5.6a3 3 0 0 0 2.1 2.1c1.8.5 8.4.5 8.4.5s6.6 0 8.4-.5a3 3 0 0 0 2.1-2.1C23 15.8 23 12 23 12z" fill="#FF0000"/><path d="M10 15.5l5-3.5-5-3.5z" fill="#fff"/></svg><span>오프닝</span><svg class="ext" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+          <a class="vbtn" href="https://www.youtube.com/results?search_query=%EC%A3%BC%EC%88%A0%ED%9A%8C%EC%A0%84+ED" target="_blank" rel="noopener"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M23 12s0-3.8-.5-5.6a3 3 0 0 0-2.1-2.1C18.6 3.8 12 3.8 12 3.8s-6.6 0-8.4.5a3 3 0 0 0-2.1 2.1C1 8.2 1 12 1 12s0 3.8.5 5.6a3 3 0 0 0 2.1 2.1c1.8.5 8.4.5 8.4.5s6.6 0 8.4-.5a3 3 0 0 0 2.1-2.1C23 15.8 23 12 23 12z" fill="#FF0000"/><path d="M10 15.5l5-3.5-5-3.5z" fill="#fff"/></svg><span>엔딩</span><svg class="ext" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+        </div>
+        <div class="note"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-5M12 8h.01"/></svg>각 버튼을 누르면 유튜브 공식 채널 페이지로 새 탭에서 열립니다.</div>
+      </div>
+
+      <!-- 작품 정보 -->
+      <div class="section">
+        <div class="sec-head"><span class="bar-i"></span><h2>작품 정보</h2></div>
+        <div class="infogrid">
+          <div class="ig"><span class="k">원제</span><span class="v">呪術廻戦</span></div>
+          <div class="ig"><span class="k">감독</span><span class="v">박성후</span></div>
+          <div class="ig"><span class="k">제작사</span><span class="v">MAPPA</span></div>
+          <div class="ig"><span class="k">방영</span><span class="v">2020 가을</span></div>
+          <div class="ig"><span class="k">화수</span><span class="v">전 24화</span></div>
+          <div class="ig"><span class="k">장르</span><span class="v">다크판타지 · 배틀</span></div>
+        </div>
+      </div>
+
+      <!-- 감상평 -->
+      <div class="section">
+        <div class="sec-head"><span class="bar-i"></span><h2>감상평</h2><span class="count">2개</span></div>
+        <div class="cmt">
+          <div class="cin"><div class="av"></div><input placeholder="이 애니에 대한 감상을 남겨보세요"><button>등록</button></div>
+          <div class="citem"><div class="cav" style="background:linear-gradient(135deg,#0E7A5F,#15B886)"></div><div class="cbody"><div class="cmeta"><span class="cu">저주받은_복숭아</span><span class="ct">3일 전</span></div><p>1기 작화 미쳤고 마지막화 보고 바로 원작으로 넘어갔어요. 매핑 정보 덕분에 어디서부터 볼지 안 헤맴 👍</p><div class="cact"><span>♡ 24</span><span>답글</span></div></div></div>
+          <div class="citem"><div class="cav" style="background:linear-gradient(135deg,#C0341E,#FF6A2C)"></div><div class="cbody"><div class="cmeta"><span class="cu">시부야_생존자</span><span class="ct">1주 전</span></div><p>입문용으로 진짜 좋음. OP 1번 들으면 계속 흥얼거리게 됨.</p><div class="cact"><span>♡ 11</span><span>답글</span></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== MANGA DETAIL ===================== -->
+<section class="view" id="view-manga">
+  <div class="wrap">
+    <div class="crumb"><a onclick="go('home')">홈</a><span class="sep">/</span><a onclick="go('manga-list')">만화</a><span class="sep">/</span><span class="cur">주술회전</span></div>
+    <div class="dhero manga">
+      <div class="banner"><div class="bg"></div><div class="scrim"></div></div>
+      <div class="body">
+        <div class="poster cv-manga"><span class="ribbon">코믹스 · 연재완결</span><span class="pt">주술<br>회전</span></div>
+        <div class="headinfo">
+          <span class="kind manga">● 만화 · 원작</span>
+          <h1>주술회전</h1>
+          <div class="orig">呪術廻戦 · 아쿠타미 게게</div>
+          <div class="metarow"><span class="chip">작가 <b>芥見下々</b></span><span class="chip">출판 <b>集英社</b></span><span class="chip">국내 <b>학산문화사</b></span><span class="chip">권수 <b>전 30권</b></span><span class="chip status-done">완결</span></div>
+          <div class="statline"><div class="rate"><span class="star">★</span><span class="num">4.7</span><span class="cnt">98명 평가</span></div><div class="actions"><button class="btn">♡ 관심작품</button><button class="btn">↗ 공유</button></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="cols">
+      <div class="main">
+        <div class="section"><div class="sec-head"><span class="bar-i"></span><h2>작품 소개</h2></div><p class="prose">주간 소년점프에서 연재된 다크 판타지 배틀 만화. 저주가 실재하는 세계를 배경으로, 인간의 부정적인 감정에서 태어난 ‘저주령’과 이를 퇴치하는 주술사들의 싸움을 그린다. 속도감 있는 전투 연출과 매력적인 캐릭터 군상극으로 큰 인기를 얻었으며, 애니메이션화 이후 전 세계적으로 팬층이 확장되었다.</p></div>
+        <div class="section"><div class="sec-head"><span class="bar-i"></span><h2>단행본</h2><span class="count">전 30권</span></div><div class="vol" id="volList"></div></div>
+        <div class="section">
+          <div class="sec-head"><span class="bar-i"></span><h2>감상평</h2><span class="count">2개</span></div>
+          <div class="cmt">
+            <div class="cin"><div class="av"></div><input placeholder="이 만화에 대한 감상을 남겨보세요"><button>등록</button></div>
+            <div class="citem"><div class="cav" style="background:linear-gradient(135deg,#7C4DEF,#FF3E64)"></div><div class="cbody"><div class="cmeta"><span class="cu">단행본_수집가</span><span class="ct">2일 전</span></div><p>애니 1기 보고 8권부터 봤는데 매핑 딱 맞았어요. 종이책으로 소장각 👍</p><div class="cact"><span>♡ 31</span><span>답글</span></div></div></div>
+            <div class="citem"><div class="cav" style="background:linear-gradient(135deg,#0E7A5F,#15B886)"></div><div class="cbody"><div class="cmeta"><span class="cu">주술_고전</span><span class="ct">5일 전</span></div><p>후반부 작화 미쳤습니다. 애니로 어디까지 나왔는지 헷갈렸는데 여기서 정리됨.</p><div class="cact"><span>♡ 17</span><span>답글</span></div></div></div>
+          </div>
+        </div>
+      </div>
+      <aside class="aside">
+        <div class="bridge-box">
+          <div class="top"><div class="lab">▸ 영상으로 만나기</div><div class="ttl">이 작품의<br>애니메이션</div></div>
+          <div class="mid">
+            <div class="linkcover"><div class="lc cv-anime" style="background:linear-gradient(150deg,#5B2BD6,#9D3CE0 55%,#2D6BD4)"><span class="lct">주술<br>회전</span></div><div class="ld"><div class="ln">주술회전 1기</div><div class="lm">TVA · 24화<br>MAPPA · 2020</div></div></div>
+            <div class="coordbox"><div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></div><div class="ctxt"><div class="cl">애니 1기가 다루는 범위</div><div class="cv"><b>1권 ~ 8권 63화</b></div></div></div>
+            <button class="go" onclick="go('anime')">애니 정보 보기 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+          </div>
+        </div>
+        <div class="minicard"><h3>작품 정보</h3><div class="infolist"><div class="ir"><span class="k">원제</span><span class="v">呪術廻戦</span></div><div class="ir"><span class="k">작가</span><span class="v">芥見下々</span></div><div class="ir"><span class="k">연재</span><span class="v">주간 소년점프</span></div><div class="ir"><span class="k">권수</span><span class="v">전 30권 (완결)</span></div><div class="ir"><span class="k">장르</span><span class="v">다크판타지 · 배틀</span></div></div></div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== MY PAGE ===================== -->
+<section class="view" id="view-mypage">
+  <div class="wrap">
+    <div class="profile">
+      <div class="avatar">네</div>
+      <div class="p-info"><div class="pname">네온라이더</div><div class="pmeta">@neon_rider · 가입 2023.10</div><div class="pbtns"><button class="pbtn primary">프로필 편집</button><button class="pbtn">계정 관리</button></div></div>
+      <div class="p-stats"><div class="stat"><div class="n">124</div><div class="l">찜한 작품</div></div><div class="stat"><div class="n">89</div><div class="l">활동 수</div></div></div>
+    </div>
+    <div class="msec"><div class="msec-head"><span class="ico">♥</span><h2>찜한 콘텐츠</h2><span class="more">모두 보기 ›</span></div><div class="fav-grid" id="favGrid"></div></div>
+    <div class="msec"><div class="msec-head"><span class="ico">↺</span><h2>나의 활동</h2><span class="more">전체 보기 ›</span></div><div class="act-list" id="actList"></div></div>
+  </div>
+</section>
+
+<footer>
+  <div class="foot">
+    <span class="logo" onclick="go('home')"><span class="word" style="font-size:18px">애<b>만</b>보</span></span>
+    <div class="fl"><a>소개</a><a>이용약관</a><a>개인정보처리방침</a></div>
+    <span>© 2026 애만보. All rights reserved.</span>
+  </div>
+</footer>
+
+<button class="fab" onclick="alert('AI 추천 챗봇은 3차 기능이에요 :)')"><span class="ai">✦</span><span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.1"><span>뭐 볼지 물어보기</span><span style="font-size:10px;font-weight:400;opacity:.9;font-family:'Space Mono',monospace">AI 추천</span></span></button>
+
+<script>
+function go(v){
+  document.body.dataset.view=v;
+  document.querySelectorAll('.view').forEach(s=>s.classList.toggle('active', s.id==='view-'+v));
+  window.scrollTo(0,0);
+}
+function tab(el,grad,label,dur){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');
+  document.getElementById('playerThumb').style.background='linear-gradient(135deg,'+grad+')';
+  const lbl=document.getElementById('playerLabel');lbl.childNodes[lbl.childNodes.length-1].textContent=label;
+  document.getElementById('playerDur').textContent=dur;
+}
+
+function vtab(el,grad,label,dur,q){
+ el.parentNode.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');
+ document.getElementById('playerThumb').style.background='linear-gradient(135deg,'+grad+')';
+ const lbl=document.getElementById('playerLabel');lbl.childNodes[lbl.childNodes.length-1].textContent=' '+label;
+ document.getElementById('playerDur').textContent=dur;
+ document.getElementById('ytLink').href='https://www.youtube.com/results?search_query='+encodeURIComponent(q);
+}
+function openYt(){window.open(document.getElementById('ytLink').href,'_blank','noopener');}
+/* ===== data ===== */
+const animeAll=[
+ {t:"귀멸의 칼날",g:"linear-gradient(150deg,#0E7A5F,#15B886 55%,#0BA0B5)",type:"TVA",ep:"진행중",year:2019,rating:4.8,status:"on",statusL:"방영중",pop:95,genre:"액션"},
+ {t:"나 혼자만 레벨업",g:"linear-gradient(150deg,#1E2A78,#3B4FD6 55%,#6A3CE0)",type:"TVA",ep:"12화",year:2024,rating:4.7,status:"done",statusL:"완결",pop:92,genre:"판타지"},
+ {t:"도쿄 리벤저스",g:"linear-gradient(150deg,#8A1F2E,#E0432E 60%,#F0843C)",type:"TVA",ep:"24화",year:2021,rating:4.3,status:"done",statusL:"완결",pop:70,genre:"액션"},
+ {t:"모브사이코 100",g:"linear-gradient(150deg,#2E7A33,#6BD64F 55%,#13B5A0)",type:"TVA",ep:"12화",year:2016,rating:4.6,status:"done",statusL:"완결",pop:65,genre:"판타지"},
+ {t:"빈란드 사가",g:"linear-gradient(150deg,#3A4456,#6B7689 55%,#8A5A2E)",type:"TVA",ep:"24화",year:2019,rating:4.7,status:"done",statusL:"완결",pop:72,genre:"액션"},
+ {t:"스파이 패밀리",g:"linear-gradient(150deg,#D6256E,#FF6FA3 55%,#7A40E0)",type:"TVA",ep:"2기",year:2022,rating:4.6,status:"on",statusL:"방영중",pop:88,genre:"일상"},
+ {t:"약속의 네버랜드",g:"linear-gradient(150deg,#143A36,#1F7A6E 55%,#3AA13A)",type:"TVA",ep:"12화",year:2019,rating:4.4,status:"done",statusL:"완결",pop:60,genre:"미스터리"},
+ {t:"원펀맨",g:"linear-gradient(150deg,#C9A21E,#F0C53C 50%,#E0432E)",type:"TVA",ep:"12화",year:2015,rating:4.5,status:"done",statusL:"완결",pop:80,genre:"액션"},
+ {t:"주술회전",g:"linear-gradient(150deg,#5B2BD6,#9D3CE0 55%,#2D6BD4)",type:"TVA",ep:"24화",year:2020,rating:4.7,status:"done",statusL:"완결",pop:90,genre:"액션"},
+ {t:"진격의 거인",g:"linear-gradient(150deg,#3A4456,#6B7689 50%,#A13A2E)",type:"TVA",ep:"4기",year:2013,rating:4.9,status:"done",statusL:"완결",pop:98,genre:"액션"},
+ {t:"체인소 맨",g:"linear-gradient(150deg,#C0341E,#FF6A2C 60%,#E01E62)",type:"TVA",ep:"12화",year:2022,rating:4.5,status:"new",statusL:"NEW",pop:85,genre:"액션"},
+ {t:"최애의 아이",g:"linear-gradient(150deg,#A1206E,#FF4DA6 55%,#7A40E0)",type:"TVA",ep:"11화",year:2023,rating:4.6,status:"done",statusL:"완결",pop:82,genre:"미스터리"},
+ {t:"푸른 오케스트라",g:"linear-gradient(150deg,#0E5AA8,#2DA7D6 55%,#3AC7C0)",type:"TVA",ep:"24화",year:2023,rating:4.3,status:"done",statusL:"완결",pop:50,genre:"일상"},
+ {t:"하이큐!!",g:"linear-gradient(150deg,#C95A1E,#F0A93B 50%,#13B5A0)",type:"TVA",ep:"4기",year:2014,rating:4.8,status:"done",statusL:"완결",pop:84,genre:"스포츠"},
+ {t:"모노노케",g:"linear-gradient(150deg,#3A2060,#6A2BA0 55%,#1A1622)",type:"TVA",ep:"12화",year:2007,rating:4.4,status:"done",statusL:"완결",pop:40,genre:"미스터리"},
+];
+const mangaAll=[
+ {t:"귀멸의 칼날",author:"고토게 코요하루",vol:"전 23권",year:2016,rating:4.8,status:"done",statusL:"완결",pop:90,c:"#0E7A5F",genre:"액션"},
+ {t:"나 혼자만 레벨업",author:"추공 · REDICE",vol:"전 14권",year:2018,rating:4.9,status:"done",statusL:"완결",pop:95,c:"#3B4FD6",genre:"판타지"},
+ {t:"도쿄 리벤저스",author:"와쿠이 켄",vol:"전 31권",year:2017,rating:4.2,status:"done",statusL:"완결",pop:60,c:"#E0432E",genre:"액션"},
+ {t:"베르세르크",author:"미우라 켄타로",vol:"41권+",year:1989,rating:4.7,status:"on",statusL:"연재중",pop:70,c:"#5A3A2E",genre:"판타지"},
+ {t:"빈란드 사가",author:"유키무라 마코토",vol:"28권+",year:2005,rating:4.7,status:"on",statusL:"연재중",pop:68,c:"#6B7689",genre:"액션"},
+ {t:"스파이 패밀리",author:"엔도 타츠야",vol:"13권+",year:2019,rating:4.6,status:"on",statusL:"연재중",pop:85,c:"#FF4D8D",genre:"일상"},
+ {t:"약속의 네버랜드",author:"시라이 카이우",vol:"전 20권",year:2016,rating:4.4,status:"done",statusL:"완결",pop:55,c:"#1F7A6E",genre:"미스터리"},
+ {t:"원펀맨",author:"ONE · 무라타 유스케",vol:"30권+",year:2012,rating:4.5,status:"on",statusL:"연재중",pop:78,c:"#E0A21E",genre:"액션"},
+ {t:"주술회전",author:"아쿠타미 게게",vol:"전 30권",year:2018,rating:4.7,status:"done",statusL:"완결",pop:88,c:"#7C4DEF",genre:"액션"},
+ {t:"진격의 거인",author:"이사야마 하지메",vol:"전 34권",year:2009,rating:4.9,status:"done",statusL:"완결",pop:97,c:"#5A6678",genre:"액션"},
+ {t:"체인소 맨",author:"후지모토 타츠키",vol:"16권+",year:2018,rating:4.6,status:"on",statusL:"연재중",pop:83,c:"#FF6A2C",genre:"액션"},
+ {t:"최애의 아이",author:"아카사카 아카",vol:"16권+",year:2020,rating:4.6,status:"on",statusL:"연재중",pop:80,c:"#FF4DA6",genre:"미스터리"},
+ {t:"청의 하코",author:"미요시 코지",vol:"18권+",year:2021,rating:4.4,status:"on",statusL:"연재중",pop:58,c:"#2DA7D6",genre:"로맨스"},
+ {t:"하이큐!!",author:"후루다테 하루이치",vol:"전 45권",year:2012,rating:4.8,status:"done",statusL:"완결",pop:82,c:"#F0843C",genre:"스포츠"},
+ {t:"도로헤도로",author:"하야시다 큐",vol:"전 23권",year:2000,rating:4.5,status:"done",statusL:"완결",pop:45,c:"#5A5A66",genre:"액션"},
+];
+
+/* card builders */
+function animeCover(a,rank){
+ return `<div class="cover-art cv-anime" style="background:${a.g}">${rank?`<span class="rank">${rank}</span>`:''}<span class="stat-badge ${a.status}">${a.statusL}</span><span class="ct">${a.t}</span></div>`;
+}
+function mangaCover(m,rank){
+ return `<div class="cover-art cv-manga">${rank?`<span class="rank">${rank}</span>`:''}<span class="stat-badge ${m.status}">${m.statusL}</span><div class="mband" style="background:${m.c}">${m.t}</div></div>`;
+}
+
+/* HOME rows */
+function topBy(arr,crit,n){
+ const c=arr.slice();
+ if(crit==='rating')c.sort((a,b)=>b.rating-a.rating);
+ else if(crit==='recent')c.sort((a,b)=>b.year-a.year);
+ else c.sort((a,b)=>b.pop-a.pop);
+ return c.slice(0,n);
+}
+function seasonAnime(crit,btn){
+ if(btn){[...btn.parentNode.children].forEach(b=>b.classList.remove('on'));btn.classList.add('on');}
+ document.getElementById('homeAnimeRow').innerHTML=topBy(animeAll,crit,8).map((a,i)=>`<article class="wcard" onclick="go('anime')">${animeCover(a,i+1)}<div class="cardinfo"><div class="n">${a.t}</div><div class="m"><span class="star">★</span> ${a.rating} · ${a.type} · ${a.year}</div></div></article>`).join('');
+}
+function seasonManga(crit,btn){
+ if(btn){[...btn.parentNode.children].forEach(b=>b.classList.remove('on'));btn.classList.add('on');}
+ document.getElementById('homeMangaRow').innerHTML=topBy(mangaAll,crit,8).map((m,i)=>`<article class="wcard" onclick="go('manga')">${mangaCover(m,i+1)}<div class="cardinfo"><div class="n">${m.t}</div><div class="m"><span class="star">★</span> ${m.rating} · ${m.vol}</div></div></article>`).join('');
+}
+
+/* LISTING */
+const listState={anime:{sort:'name',genre:'전체'},manga:{sort:'name',genre:'전체'}};
+function buildGenres(kind){
+ const arr=kind==='anime'?animeAll:mangaAll;
+ const set=['전체',...Array.from(new Set(arr.map(x=>x.genre)))];
+ document.getElementById(kind+'Genres').innerHTML=set.map(g=>`<span class="gchip ${g==='전체'?'on':''}" onclick="filterGenre('${kind}','${g}',this)">${g}</span>`).join('');
+}
+function renderList(kind){
+ const st=listState[kind];
+ let arr=(kind==='anime'?animeAll:mangaAll).slice();
+ if(st.genre!=='전체')arr=arr.filter(x=>x.genre===st.genre);
+ if(st.sort==='name')arr.sort((a,b)=>a.t.localeCompare(b.t,'ko'));
+ else if(st.sort==='pop')arr.sort((a,b)=>b.pop-a.pop);
+ else if(st.sort==='recent')arr.sort((a,b)=>b.year-a.year);
+ else if(st.sort==='rating')arr.sort((a,b)=>b.rating-a.rating);
+ document.getElementById(kind+'Count').textContent=arr.length+'작품';
+ document.getElementById(kind+'Grid').innerHTML=arr.map(x=>{
+  const cover=kind==='anime'?animeCover(x):mangaCover(x);
+  const sub=kind==='anime'?`${x.type} · ${x.ep} · ${x.year}`:`${x.author} · ${x.vol}`;
+  return `<article class="gcard" onclick="go('${kind}')">${cover}<div class="gtitle">${x.t}</div><div class="gsub"><span class="gstar">★</span> ${x.rating} · ${sub}</div></article>`;
+ }).join('');
+}
+function sortList(kind,key,btn){listState[kind].sort=key;[...btn.parentNode.children].forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderList(kind);}
+function filterGenre(kind,g,chip){listState[kind].genre=g;[...chip.parentNode.children].forEach(c=>c.classList.remove('on'));chip.classList.add('on');renderList(kind);}
+
+/* MANGA volumes (detail) */
+const vols=[
+ {v:1,t:"료멘스쿠나",ch:"1–8화",date:"2018.03",r:"4.6"},{v:2,t:"피가 솟구치는",ch:"9–16화",date:"2018.05",r:"4.5"},
+ {v:3,t:"교토 자매교 교류회",ch:"17–25화",date:"2018.07",r:"4.6"},{v:4,t:"출옥",ch:"26–34화",date:"2018.11",r:"4.7"},
+ {v:5,t:"기화점",ch:"35–43화",date:"2019.01",r:"4.7"},{v:6,t:"멸망 회유의 밤",ch:"44–52화",date:"2019.04",r:"4.8"},
+ {v:7,t:"영광",ch:"53–63화",date:"2019.07",r:"4.8"},{v:8,t:"우연한 축복",ch:"64–72화",date:"2019.09",r:"4.9",continue:true},
+];
+document.getElementById('volList').innerHTML=vols.map(v=>`<div class="vrow ${v.continue?'continue':''}"><div class="vn">${v.v}</div><div class="vmeta"><div class="vt">${v.v}권 · ${v.t}</div><div class="vs">${v.ch} · ${v.date}</div></div>${v.continue?'<span class="cflag">여기부터 ▸</span>':''}<div class="vr"><span class="star">★</span> ${v.r}</div></div>`).join('')+'<div class="vmore">9권부터 30권까지 더 보기 ▾</div>';
+
+/* MY PAGE */
+const favs=[
+ {t:"주술회전",kind:"anime",g:"linear-gradient(150deg,#5B2BD6,#9D3CE0 55%,#2D6BD4)",badge:"done",bt:"완결",sub:"TVA · 24화"},
+ {t:"체인소 맨",kind:"manga",badge:"on",bt:"연재중",sub:"코믹스 · 2부"},
+ {t:"스파이 패밀리",kind:"anime",g:"linear-gradient(150deg,#D6256E,#FF6FA3 55%,#7A40E0)",badge:"new",bt:"NEW",sub:"TVA · 2기"},
+ {t:"진격의 거인",kind:"manga",badge:"done",bt:"완결",sub:"전 34권"},
+ {t:"귀멸의 칼날",kind:"anime",g:"linear-gradient(150deg,#0E7A5F,#15B886 55%,#0BA0B5)",badge:"done",bt:"완결",sub:"TVA · 진행중"},
+ {t:"주술회전",kind:"manga",badge:"on",bt:"연재중",sub:"전 30권"},
+ {t:"체인소 맨",kind:"anime",g:"linear-gradient(150deg,#C0341E,#FF6A2C 60%,#E01E62)",badge:"new",bt:"NEW",sub:"TVA · 12화"},
+ {t:"스파이 패밀리",kind:"manga",badge:"on",bt:"연재중",sub:"13권+"},
+];
+document.getElementById('favGrid').innerHTML=favs.map(f=>`<article class="fcard" onclick="go('${f.kind}')"><div class="art cv-${f.kind}" ${f.kind==='anime'?`style="background:${f.g}"`:''}><span class="kindtag ${f.kind}">${f.kind==='anime'?'ANIME':'MANGA'}</span><span class="fbadge ${f.badge}">${f.bt}</span><span class="ft">${f.t}</span></div><div class="finfo"><div class="fn">${f.t}</div><div class="fs">${f.sub}</div></div></article>`).join('');
+const acts=[
+ {t:"주술회전 1기",kind:"anime",g:"linear-gradient(135deg,#5B2BD6,#9D3CE0)",ini:"주",kindL:"댓글",text:'"1기 작화 미쳤고 마지막화 보고 바로 원작으로 넘어갔어요."',time:"14:30",review:true},
+ {t:"체인소 맨",kind:"manga",ini:"체",kindL:"댓글",text:'"5권 39화부터 보라는 매핑 정확하네요. 안 헤매고 이어봄 👍"',time:"21:15",review:true},
+ {t:"스파이 패밀리 2기",kind:"anime",g:"linear-gradient(135deg,#D6256E,#FF6FA3)",ini:"스",kindL:"활동",text:"시청 완료 · 에피소드 25",time:"2026.06.12",review:false},
+];
+document.getElementById('actList').innerHTML=acts.map(a=>`<div class="arow" onclick="go('${a.kind}')"><div class="athumb cv-${a.kind}" ${a.kind==='anime'?`style="background:${a.g}"`:''}><span class="ai">${a.ini}</span></div><div class="abody"><div class="akind">${a.kindL}</div><div class="atitle">${a.t}</div><div class="atext ${a.review?'review':''}">${a.text}</div></div><div class="atime">${a.time}</div></div>`).join('');
+
+/* init */
+seasonAnime('pop'); seasonManga('pop');
+buildGenres('anime'); buildGenres('manga');
+renderList('anime'); renderList('manga');
+</script>
+</body>
+</html>

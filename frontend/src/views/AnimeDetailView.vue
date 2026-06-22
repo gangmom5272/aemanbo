@@ -20,6 +20,10 @@ const posting = ref(false)
 const gradient = computed(() => (anime.value ? animeGradient(anime.value.title) : ''))
 const poster = computed(() => realImage(anime.value?.poster_image_url))
 const primaryMapping = computed(() => mappings.value[0] || null)
+const hasContinuePoint = computed(() => {
+  const m = primaryMapping.value
+  return !!(m && (m.continue_chapter || m.continue_volume))
+})
 const continueText = computed(() => {
   const m = primaryMapping.value
   if (!m) return ''
@@ -139,7 +143,8 @@ onMounted(async () => {
           <div class="ms-cover cv-manga"><span class="mband" style="background:#7C4DEF">{{ primaryMapping.manga?.title }}</span></div>
           <div class="ms-main">
             <div class="ms-label">📚 애니를 다 봤다면, <b>원작 만화는</b></div>
-            <div class="ms-coord">{{ continueText }}<small>부터 이어 보세요</small></div>
+            <div v-if="hasContinuePoint" class="ms-coord">{{ continueText }}<small>부터 이어 보세요</small></div>
+            <div v-else class="ms-coord">{{ primaryMapping.manga?.title }}<small>원작 만화 · 이어보기 지점 준비중</small></div>
           </div>
           <button class="ms-cta" v-if="primaryMapping.manga" @click="router.push({ name: 'manga-detail', params: { id: primaryMapping.manga.id } })">
             원작 만화 보기
