@@ -1,15 +1,20 @@
 <script setup>
-const appName = 'Aemanbo'
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+import AppHeader from './components/AppHeader.vue'
+import AppFooter from './components/AppFooter.vue'
+import ChatFab from './components/ChatFab.vue'
+
+const route = useRoute()
+// 로그인/콜백 같은 'bare' 화면에서는 헤더/푸터/FAB 숨김
+const bare = computed(() => route.meta.bare === true)
 </script>
 
 <template>
-  <main class="app-shell">
-    <section class="intro">
-      <p class="eyebrow">Vue frontend is ready</p>
-      <h1>{{ appName }}</h1>
-      <p class="summary">
-        프론트엔드 초기 설정이 완료되었습니다. 이제 이 화면을 실제 기능으로 하나씩 채워가면 됩니다.
-      </p>
-    </section>
-  </main>
+  <AppHeader v-if="!bare" />
+  <RouterView v-slot="{ Component }">
+    <component :is="Component" :key="route.fullPath" class="page-fade" />
+  </RouterView>
+  <AppFooter v-if="!bare" />
+  <ChatFab v-if="!bare" />
 </template>

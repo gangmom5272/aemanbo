@@ -185,4 +185,3 @@ class MangaAnimeMappingsAPIView(APIView):
                 "mappings": serializer.data,
             }
         )
-
