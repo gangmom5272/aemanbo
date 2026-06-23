@@ -1,9 +1,11 @@
 from django.urls import path
 
 from .views import (
+    AnimeCommentDetailAPIView,
     AnimeCommentsAPIView,
     FavoriteAPIView,
     FavoriteDetailAPIView,
+    MangaCommentDetailAPIView,
     MangaCommentsAPIView,
     MyCommentsAPIView,
     MyFavoritesAPIView,
@@ -26,8 +28,18 @@ urlpatterns = [
         name="anime-comments",
     ),
     path(
+        "animes/<int:anime_id>/comments/<int:comment_id>/",
+        AnimeCommentDetailAPIView.as_view(),
+        name="anime-comment-detail",
+    ),
+    path(
         "mangas/<int:manga_id>/comments/",
         MangaCommentsAPIView.as_view(),
         name="manga-comments",
+    ),
+    path(
+        "mangas/<int:manga_id>/comments/<int:comment_id>/",
+        MangaCommentDetailAPIView.as_view(),
+        name="manga-comment-detail",
     ),
 ]

@@ -4,6 +4,13 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# .env 파일에서 환경변수 로드 (있으면)
+try:
+    from dotenv import load_dotenv
+    load_dotenv(BASE_DIR / ".env")
+except ImportError:
+    pass
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -35,6 +42,7 @@ INSTALLED_APPS = [
     'apps.works',
     'apps.users',
     'apps.interactions',
+    'apps.chat',
 ]
 
 MIDDLEWARE = [
@@ -115,6 +123,9 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
@@ -132,7 +143,7 @@ OAUTH_PROVIDERS = {
         "client_secret": os.environ.get("GOOGLE_CLIENT_SECRET", ""),
         "redirect_uri": os.environ.get(
             "GOOGLE_REDIRECT_URI",
-            "http://127.0.0.1:8000/api/v1/auth/oauth/google/callback/",
+            "http://localhost:5173/auth/callback/google",
         ),
         "authorization_url": "https://accounts.google.com/o/oauth2/v2/auth",
         "token_url": "https://oauth2.googleapis.com/token",
@@ -148,7 +159,7 @@ OAUTH_PROVIDERS = {
         "client_secret": os.environ.get("KAKAO_CLIENT_SECRET", ""),
         "redirect_uri": os.environ.get(
             "KAKAO_REDIRECT_URI",
-            "http://127.0.0.1:8000/api/v1/auth/oauth/kakao/callback/",
+            "http://localhost:5173/auth/callback/kakao",
         ),
         "authorization_url": "https://kauth.kakao.com/oauth/authorize",
         "token_url": "https://kauth.kakao.com/oauth/token",
@@ -161,12 +172,18 @@ OAUTH_PROVIDERS = {
         "client_secret": os.environ.get("NAVER_CLIENT_SECRET", ""),
         "redirect_uri": os.environ.get(
             "NAVER_REDIRECT_URI",
-            "http://127.0.0.1:8000/api/v1/auth/oauth/naver/callback/",
+            "http://localhost:5173/auth/callback/naver",
         ),
         "authorization_url": "https://nid.naver.com/oauth2.0/authorize",
         "token_url": "https://nid.naver.com/oauth2.0/token",
         "userinfo_url": "https://openapi.naver.com/v1/nid/me",
         "scope": "",
-        "extra_params": {},
+        "extra_params": {"state": "aemanbo_naver_state"},
     },
+}
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "apps.users.authentication.CsrfExemptSessionAuthentication",
+    ],
 }

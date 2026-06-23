@@ -5,7 +5,6 @@ from apps.works.models import (
     AnimeMangaMapping,
     AnimeTag,
     Manga,
-    MangaEpisode,
     MangaTag,
     MetadataTag,
 )
@@ -294,16 +293,6 @@ class Command(BaseCommand):
             )
             AnimeTag.objects.get_or_create(anime=anime, tag=studio_tag)
 
-            for episode_data in work_set["episodes"]:
-                MangaEpisode.objects.update_or_create(
-                    manga=manga,
-                    volume_number=episode_data["volume_number"],
-                    chapter_number=episode_data["chapter_number"],
-                    defaults={
-                        "title": episode_data["title"],
-                        "rating_avg": episode_data.get("rating_avg", 0),
-                    },
-                )
 
             AnimeMangaMapping.objects.update_or_create(
                 anime=anime,

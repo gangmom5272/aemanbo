@@ -49,7 +49,7 @@ header{position:sticky;top:0;z-index:50;background:rgba(247,245,244,.85);backdro
 
 /* ===== unified card cover (home rows + listing grid) ===== */
 .cover-art{position:relative;border-radius:14px;overflow:hidden;aspect-ratio:3/4;display:grid;place-items:center;border:1px solid rgba(0,0,0,.05);transition:box-shadow .2s}
-.cover-art .ct{font-family:'Black Han Sans',sans-serif;font-size:20px;text-align:center;padding:0 10px;z-index:2;line-height:1.05}
+.cover-art .ct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Black Han Sans',sans-serif;font-size:20px;text-align:center;padding:0 10px;z-index:2;line-height:1.05}
 .cover-art.cv-manga{place-items:stretch}
 .cover-art.cv-manga::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 3px rgba(26,22,34,.82);border-radius:14px;z-index:3;pointer-events:none}
 .cover-art .mband{position:absolute;left:0;right:0;bottom:0;z-index:2;padding:10px 9px;color:#fff;font-family:'Black Han Sans',sans-serif;font-size:14px;line-height:1.12;text-align:center}
@@ -60,7 +60,7 @@ header{position:sticky;top:0;z-index:50;background:rgba(247,245,244,.85);backdro
 .stat-badge.done{background:rgba(26,22,34,.72);color:#fff}
 .stat-badge.new{background:var(--spot);color:#fff}
 
-.row{display:flex;gap:18px;overflow-x:auto;padding:6px 4px 18px;scroll-snap-type:x mandatory;scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+.row{display:flex;align-items:flex-start;gap:18px;overflow-x:auto;padding:6px 4px 18px;scroll-snap-type:x mandatory;scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
 .row::-webkit-scrollbar{height:7px}.row::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:10px}
 .wcard{flex:0 0 174px;scroll-snap-align:start;cursor:pointer;transition:transform .2s}
 .wcard:hover{transform:translateY(-6px)}

@@ -1,3 +1,5 @@
+import difflib
+
 from django.db.models import Q
 
 from .models import Anime, AnimeMangaMapping, Manga
@@ -24,51 +26,87 @@ def get_home_data():
     }
 
 
+def _partial_ratio(short, text):
+    """short(검색어)를 text 안에서 슬라이딩하며 가장 비슷한 구간의 유사도(0~1)."""
+    if not short or not text:
+        return 0.0
+    if short in text:
+        return 1.0
+    if len(short) > len(text):
+        short, text = text, short
+    n = len(short)
+    best = 0.0
+    for i in range(len(text) - n + 1):
+        r = difflib.SequenceMatcher(None, short, text[i : i + n]).ratio()
+        if r > best:
+            best = r
+    return best
+
+
+def _fuzzy_fill(model, keyword, exclude_ids, need, fields, threshold=0.7):
+    """substring으로 못 채운 만큼 오타 허용 매칭으로 보강."""
+    if need <= 0:
+        return []
+    kw = keyword.lower()
+    ranked = []
+    for row in model.objects.exclude(id__in=exclude_ids).values("id", *fields):
+        score = 0.0
+        for f in fields:
+            score = max(score, _partial_ratio(kw, (row.get(f) or "").lower()))
+            if score >= 0.999:
+                break
+        if score >= threshold:
+            ranked.append((score, row["id"]))
+    ranked.sort(key=lambda x: x[0], reverse=True)
+    ids = [rid for _, rid in ranked[:need]]
+    if not ids:
+        return []
+    by_id = {obj.id: obj for obj in model.objects.filter(id__in=ids)}
+    return [by_id[i] for i in ids if i in by_id]
+
+
 def search_works(keyword, limit=DEFAULT_SEARCH_LIMIT):
     normalized_keyword = keyword.strip()
     if not normalized_keyword:
         raise ValueError("keyword is required")
 
+    # 제목(+원제)만 검색 — 줄거리/제작사/작가 등은 검색 대상에서 제외
     anime_query = (
         Q(title__icontains=normalized_keyword)
         | Q(original_title__icontains=normalized_keyword)
-        | Q(studio__icontains=normalized_keyword)
-        | Q(synopsis__icontains=normalized_keyword)
     )
     manga_query = (
         Q(title__icontains=normalized_keyword)
         | Q(original_title__icontains=normalized_keyword)
-        | Q(author__icontains=normalized_keyword)
-        | Q(illustrator__icontains=normalized_keyword)
-        | Q(publisher__icontains=normalized_keyword)
-        | Q(description__icontains=normalized_keyword)
     )
     mapping_query = (
         Q(mapping_text__icontains=normalized_keyword)
-        | Q(description__icontains=normalized_keyword)
-        | Q(source_note__icontains=normalized_keyword)
         | Q(anime__title__icontains=normalized_keyword)
-        | Q(anime__original_title__icontains=normalized_keyword)
         | Q(manga__title__icontains=normalized_keyword)
-        | Q(manga__original_title__icontains=normalized_keyword)
+    )
+
+    animes = list(
+        Anime.objects.filter(anime_query).order_by("-favorite_count", "-rating_avg", "title")[:limit]
+    )
+    mangas = list(
+        Manga.objects.filter(manga_query).order_by("-favorite_count", "-rating_avg", "title")[:limit]
+    )
+
+    # 오타/유사어 보강 (substring으로 못 채운 만큼)
+    animes += _fuzzy_fill(
+        Anime, normalized_keyword, [a.id for a in animes], limit - len(animes),
+        ["title", "original_title"],
+    )
+    mangas += _fuzzy_fill(
+        Manga, normalized_keyword, [m.id for m in mangas], limit - len(mangas),
+        ["title", "original_title"],
     )
 
     return {
         "keyword": normalized_keyword,
-        "animes": Anime.objects.filter(anime_query).order_by(
-            "-favorite_count",
-            "-rating_avg",
-            "title",
-        )[:limit],
-        "mangas": Manga.objects.filter(manga_query).order_by(
-            "-favorite_count",
-            "-rating_avg",
-            "title",
-        )[:limit],
-        "mappings": AnimeMangaMapping.objects.select_related(
-            "anime",
-            "manga",
-        )
+        "animes": animes,
+        "mangas": mangas,
+        "mappings": AnimeMangaMapping.objects.select_related("anime", "manga")
         .filter(mapping_query)
         .order_by("-created_at", "-id")[:limit],
     }
@@ -76,7 +114,7 @@ def search_works(keyword, limit=DEFAULT_SEARCH_LIMIT):
 
 def get_recommended_mappings(limit=DEFAULT_RECOMMENDATION_LIMIT):
     safe_limit = max(1, min(limit, MAX_RECOMMENDATION_LIMIT))
+    # 무작위 추천: 호출(=새로고침)마다 다른 매핑을 반환
     return AnimeMangaMapping.objects.select_related("anime", "manga").order_by(
-        "-created_at",
-        "-id",
+        "?"
     )[:safe_limit]

@@ -72,10 +72,10 @@ class MyCommentsAPIView(APIView):
 
     def get(self, request):
         anime_comments = AnimeComment.objects.select_related("anime").filter(
-            user=request.user,
+            user=request.user, status=CommentStatus.ACTIVE,
         )
         manga_comments = MangaComment.objects.select_related("manga").filter(
-            user=request.user,
+            user=request.user, status=CommentStatus.ACTIVE,
         )
         comments = [
             {
@@ -162,3 +162,60 @@ class MangaCommentsAPIView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save(manga=manga, user=request.user)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+from django.utils import timezone
+
+
+class AnimeCommentDetailAPIView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def patch(self, request, anime_id, comment_id):
+        comment = get_object_or_404(AnimeComment, id=comment_id, anime_id=anime_id)
+        if comment.user_id != request.user.id:
+            return Response({"detail": "본인 댓글만 수정할 수 있어요."}, status=status.HTTP_403_FORBIDDEN)
+        content = (request.data.get("content") or "").strip()
+        if not content:
+            return Response({"detail": "내용을 입력해 주세요."}, status=status.HTTP_400_BAD_REQUEST)
+        comment.content = content
+        comment.save(update_fields=["content", "updated_at"])
+        return Response(AnimeCommentSerializer(comment).data)
+
+    def delete(self, request, anime_id, comment_id):
+        comment = get_object_or_404(AnimeComment, id=comment_id, anime_id=anime_id)
+        if comment.user_id != request.user.id:
+            return Response(
+                {"detail": "본인 댓글만 삭제할 수 있어요."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        comment.status = CommentStatus.DELETED
+        comment.deleted_at = timezone.now()
+        comment.save(update_fields=["status", "deleted_at", "updated_at"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class MangaCommentDetailAPIView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def patch(self, request, manga_id, comment_id):
+        comment = get_object_or_404(MangaComment, id=comment_id, manga_id=manga_id)
+        if comment.user_id != request.user.id:
+            return Response({"detail": "본인 댓글만 수정할 수 있어요."}, status=status.HTTP_403_FORBIDDEN)
+        content = (request.data.get("content") or "").strip()
+        if not content:
+            return Response({"detail": "내용을 입력해 주세요."}, status=status.HTTP_400_BAD_REQUEST)
+        comment.content = content
+        comment.save(update_fields=["content", "updated_at"])
+        return Response(MangaCommentSerializer(comment).data)
+
+    def delete(self, request, manga_id, comment_id):
+        comment = get_object_or_404(MangaComment, id=comment_id, manga_id=manga_id)
+        if comment.user_id != request.user.id:
+            return Response(
+                {"detail": "본인 댓글만 삭제할 수 있어요."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        comment.status = CommentStatus.DELETED
+        comment.deleted_at = timezone.now()
+        comment.save(update_fields=["status", "deleted_at", "updated_at"])
+        return Response(status=status.HTTP_204_NO_CONTENT)

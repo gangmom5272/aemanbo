@@ -8,7 +8,6 @@ from .models import (
     AnimeMangaMapping,
     AnimeTag,
     Manga,
-    MangaEpisode,
     MangaTag,
     MetadataTag,
 )
@@ -60,14 +59,6 @@ class DetailMappingAPITests(TestCase):
 
         MangaTag.objects.create(manga=self.manga, tag=action)
         MangaTag.objects.create(manga=self.manga, tag=dark_fantasy)
-
-        MangaEpisode.objects.create(
-            manga=self.manga,
-            volume_number=8,
-            chapter_number=64,
-            title="Hidden Inventory",
-            rating_avg=4.8,
-        )
 
         self.mapping = AnimeMangaMapping.objects.create(
             anime=self.anime,
@@ -131,32 +122,6 @@ class DetailMappingAPITests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.data["detail"], "Manga not found.")
-
-    def test_manga_episodes_api_returns_episodes(self):
-        url = reverse("works:manga-episodes", args=[self.manga.id])
-
-        response = self.client.get(url)
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["manga_id"], self.manga.id)
-        self.assertEqual(response.data["count"], 1)
-        self.assertEqual(response.data["results"][0]["chapter_number"], 64)
-
-    def test_manga_episodes_api_filters_by_volume(self):
-        MangaEpisode.objects.create(
-            manga=self.manga,
-            volume_number=9,
-            chapter_number=65,
-            title="Next Chapter",
-            rating_avg=4.5,
-        )
-        url = reverse("works:manga-episodes", args=[self.manga.id])
-
-        response = self.client.get(url, {"volume": 8})
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["count"], 1)
-        self.assertEqual(response.data["results"][0]["volume_number"], 8)
 
     def test_manga_anime_mappings_api_returns_mappings(self):
         url = reverse("works:manga-anime-mappings", args=[self.manga.id])

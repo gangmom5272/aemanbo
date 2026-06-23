@@ -5,7 +5,6 @@ from .models import (
     AnimeMangaMapping,
     AnimeTag,
     Manga,
-    MangaEpisode,
     MangaTag,
     MetadataTag,
 )
@@ -23,12 +22,6 @@ class MangaAdmin(admin.ModelAdmin):
     list_display = ("id", "title", "author", "publisher", "status", "rating_avg")
     search_fields = ("title", "original_title", "author", "publisher")
     list_filter = ("status",)
-
-
-@admin.register(MangaEpisode)
-class MangaEpisodeAdmin(admin.ModelAdmin):
-    list_display = ("id", "manga", "volume_number", "chapter_number", "title")
-    search_fields = ("title", "manga__title")
 
 
 @admin.register(AnimeMangaMapping)

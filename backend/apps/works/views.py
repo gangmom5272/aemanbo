@@ -2,14 +2,13 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Anime, AnimeMangaMapping, Manga, MangaEpisode
+from .models import Anime, AnimeMangaMapping, Manga
 from .serializers import (
     AnimeDetailSerializer,
     AnimeListSerializer,
     AnimeMangaMappingSerializer,
     MangaListSerializer,
     MangaDetailSerializer,
-    MangaEpisodeSerializer,
     MappingCardSerializer,
     MappingSearchResultSerializer,
 )
@@ -139,31 +138,6 @@ class MangaDetailAPIView(APIView):
         return Response(serializer.data)
 
 
-class MangaEpisodesAPIView(APIView):
-    def get(self, request, manga_id):
-        if not Manga.objects.filter(id=manga_id).exists():
-            return Response(
-                {"detail": "Manga not found."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        episodes = MangaEpisode.objects.filter(manga_id=manga_id)
-
-        volume = request.query_params.get("volume")
-        if volume:
-            episodes = episodes.filter(volume_number=volume)
-
-        serializer = MangaEpisodeSerializer(episodes, many=True)
-
-        return Response(
-            {
-                "manga_id": manga_id,
-                "count": episodes.count(),
-                "results": serializer.data,
-            }
-        )
-
-
 class MangaAnimeMappingsAPIView(APIView):
     def get(self, request, manga_id):
         if not Manga.objects.filter(id=manga_id).exists():
@@ -183,5 +157,81 @@ class MangaAnimeMappingsAPIView(APIView):
             {
                 "manga_id": manga_id,
                 "mappings": serializer.data,
+            }
+        )
+
+
+class AnimeListAPIView(APIView):
+    def get(self, request):
+        queryset = Anime.objects.all()
+        genre = request.query_params.get("genre")
+        if genre and genre != "전체":
+            queryset = queryset.filter(tags__name=genre)
+        sort = request.query_params.get("sort", "name")
+        ordering = {
+            "name": "title",
+            "pop": "-favorite_count",
+            "recent": "-release_year",
+            "rating": "-rating_avg",
+        }.get(sort, "title")
+        queryset = queryset.order_by(ordering, "title").distinct()
+
+        try:
+            page = max(1, int(request.query_params.get("page", 1)))
+        except (TypeError, ValueError):
+            page = 1
+        try:
+            page_size = min(60, max(1, int(request.query_params.get("page_size", 24))))
+        except (TypeError, ValueError):
+            page_size = 24
+
+        total = queryset.count()
+        start = (page - 1) * page_size
+        items = queryset[start:start + page_size]
+        return Response(
+            {
+                "count": total,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": (total + page_size - 1) // page_size,
+                "results": AnimeListSerializer(items, many=True).data,
+            }
+        )
+
+
+class MangaListAPIView(APIView):
+    def get(self, request):
+        queryset = Manga.objects.all()
+        genre = request.query_params.get("genre")
+        if genre and genre != "전체":
+            queryset = queryset.filter(tags__name=genre)
+        sort = request.query_params.get("sort", "name")
+        ordering = {
+            "name": "title",
+            "pop": "-favorite_count",
+            "recent": "-created_at",
+            "rating": "-rating_avg",
+        }.get(sort, "title")
+        queryset = queryset.order_by(ordering, "title").distinct()
+
+        try:
+            page = max(1, int(request.query_params.get("page", 1)))
+        except (TypeError, ValueError):
+            page = 1
+        try:
+            page_size = min(60, max(1, int(request.query_params.get("page_size", 24))))
+        except (TypeError, ValueError):
+            page_size = 24
+
+        total = queryset.count()
+        start = (page - 1) * page_size
+        items = queryset[start:start + page_size]
+        return Response(
+            {
+                "count": total,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": (total + page_size - 1) // page_size,
+                "results": MangaListSerializer(items, many=True).data,
             }
         )

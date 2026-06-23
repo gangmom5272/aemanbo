@@ -2,11 +2,12 @@ from django.urls import path
 
 from .views import (
     AnimeDetailAPIView,
+    AnimeListAPIView,
+    MangaListAPIView,
     AnimeMangaMappingsAPIView,
     HomeAPIView,
     MangaAnimeMappingsAPIView,
     MangaDetailAPIView,
-    MangaEpisodesAPIView,
     MappingRecommendationsAPIView,
     SearchAPIView,
 )
@@ -21,6 +22,8 @@ urlpatterns = [
         MappingRecommendationsAPIView.as_view(),
         name="mapping-recommendations",
     ),
+    path("animes/", AnimeListAPIView.as_view(), name="anime-list"),
+    path("mangas/", MangaListAPIView.as_view(), name="manga-list"),
     path("animes/<int:anime_id>/", AnimeDetailAPIView.as_view(), name="anime-detail"),
     path(
         "animes/<int:anime_id>/manga-mappings/",
@@ -28,11 +31,6 @@ urlpatterns = [
         name="anime-manga-mappings",
     ),
     path("mangas/<int:manga_id>/", MangaDetailAPIView.as_view(), name="manga-detail"),
-    path(
-        "mangas/<int:manga_id>/episodes/",
-        MangaEpisodesAPIView.as_view(),
-        name="manga-episodes",
-    ),
     path(
         "mangas/<int:manga_id>/anime-mappings/",
         MangaAnimeMappingsAPIView.as_view(),

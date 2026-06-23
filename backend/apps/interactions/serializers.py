@@ -44,6 +44,7 @@ class FavoriteCreateSerializer(serializers.Serializer):
 class CommentUserSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     username = serializers.CharField()
+    nickname = serializers.CharField(required=False, allow_blank=True)
 
 
 class BaseCommentSerializer(serializers.ModelSerializer):

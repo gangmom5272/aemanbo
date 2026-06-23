@@ -84,6 +84,10 @@ def request_oauth_access_token(provider_key, provider_config, code):
         "redirect_uri": provider_config["redirect_uri"],
         "code": code,
     }
+    # 네이버 등은 토큰 교환 시에도 authorize 때와 동일한 state가 필요
+    state = provider_config.get("extra_params", {}).get("state")
+    if state:
+        data["state"] = state
 
     response = requests.post(provider_config["token_url"], data=data, timeout=5)
     if response.status_code >= 400:
@@ -179,7 +183,8 @@ def get_or_create_oauth_user(provider_key, normalized_user_info):
 
     if user is None:
         username = make_unique_username(provider_key, provider_user_id)
-        nickname = make_unique_nickname(normalized_user_info.get("nickname", ""))
+        # 기본 닉네임은 이메일 우선 (없으면 소셜 닉네임)
+        nickname = make_unique_nickname(email or normalized_user_info.get("nickname", ""))
         user = User.objects.create_user(
             username=username,
             email=email or None,

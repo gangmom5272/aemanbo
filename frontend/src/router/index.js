@@ -6,8 +6,8 @@ const routes = [
   { path: '/', name: 'home', component: HomeView },
   { path: '/login', name: 'login', component: () => import('../views/LoginView.vue'), meta: { bare: true } },
   { path: '/auth/callback/:provider', name: 'oauth-callback', component: () => import('../views/OAuthCallbackView.vue'), meta: { bare: true } },
-  { path: '/anime', name: 'anime-list', component: () => import('../views/AnimeListView.vue') },
-  { path: '/manga', name: 'manga-list', component: () => import('../views/MangaListView.vue') },
+  { path: '/anime', name: 'anime-list', component: () => import('../views/AnimeListView.vue'), meta: { keep: true } },
+  { path: '/manga', name: 'manga-list', component: () => import('../views/MangaListView.vue'), meta: { keep: true } },
   { path: '/search', name: 'search', component: () => import('../views/SearchView.vue') },
   { path: '/anime/:id', name: 'anime-detail', component: () => import('../views/AnimeDetailView.vue'), props: true },
   { path: '/manga/:id', name: 'manga-detail', component: () => import('../views/MangaDetailView.vue'), props: true },
@@ -17,7 +17,9 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
-  scrollBehavior() {
+  scrollBehavior(to, from, savedPosition) {
+    // 뒤로/앞으로 가기 → 이전 스크롤 위치 복원, 그 외엔 맨 위
+    if (savedPosition) return savedPosition
     return { top: 0 }
   },
 })

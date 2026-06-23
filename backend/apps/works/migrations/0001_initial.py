@@ -98,23 +98,6 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
-            name='MangaEpisode',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('volume_number', models.PositiveIntegerField(blank=True, null=True)),
-                ('chapter_number', models.PositiveIntegerField(blank=True, null=True)),
-                ('title', models.CharField(blank=True, max_length=255)),
-                ('published_at', models.DateField(blank=True, null=True)),
-                ('rating_avg', models.DecimalField(decimal_places=1, default=0, max_digits=2)),
-                ('manga', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='episodes', to='works.manga')),
-            ],
-            options={
-                'ordering': ['volume_number', 'chapter_number', 'id'],
-            },
-        ),
-        migrations.CreateModel(
             name='MangaTag',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),

@@ -90,26 +90,6 @@ class Manga(TimeStampedModel):
         return self.title
 
 
-class MangaEpisode(TimeStampedModel):
-    manga = models.ForeignKey(
-        Manga,
-        on_delete=models.CASCADE,
-        related_name="episodes",
-    )
-    volume_number = models.PositiveIntegerField(null=True, blank=True)
-    chapter_number = models.PositiveIntegerField(null=True, blank=True)
-    title = models.CharField(max_length=255, blank=True)
-    published_at = models.DateField(null=True, blank=True)
-    rating_avg = models.DecimalField(max_digits=2, decimal_places=1, default=0)
-
-    class Meta:
-        ordering = ["volume_number", "chapter_number", "id"]
-
-    def __str__(self):
-        label = f"Chapter {self.chapter_number}" if self.chapter_number else "Chapter"
-        return f"{self.manga.title} - {label}"
-
-
 class AnimeMangaMapping(TimeStampedModel):
     anime = models.ForeignKey(
         Anime,

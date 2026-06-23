@@ -1,4 +1,25 @@
-import { api } from './client'
+import { api, getCookie, API_BASE, ApiError } from './client'
+
+// CSRF 쿠키 발급 (앱 시작 시 1회 호출 → 이후 POST/PATCH에 토큰 사용)
+export const getCsrf = () => api.get('/auth/csrf/')
+
+// 프로필 사진 업로드 (multipart)
+export async function uploadAvatar(file) {
+  const fd = new FormData()
+  fd.append('image', file)
+  const csrf = getCookie('csrftoken')
+  const res = await fetch(`${API_BASE}/users/me/avatar/`, {
+    method: 'POST',
+    body: fd,
+    credentials: 'include',
+    headers: csrf ? { 'X-CSRFToken': csrf } : {},
+  })
+  const text = await res.text()
+  let data = null
+  try { data = text ? JSON.parse(text) : null } catch { data = text }
+  if (!res.ok) throw new ApiError((data && data.detail) || res.statusText, res.status, data)
+  return data
+}
 
 // ──────────────────────────────────────────────
 // 구현 완료된 백엔드 API
@@ -20,15 +41,21 @@ export const getAnimeMangaMappings = (id) => api.get(`/animes/${id}/manga-mappin
 export const getAnimeComments = (id) => api.get(`/animes/${id}/comments/`)
 export const postAnimeComment = (id, content) =>
   api.post(`/animes/${id}/comments/`, { content })
+export const deleteAnimeComment = (animeId, commentId) =>
+  api.delete(`/animes/${animeId}/comments/${commentId}/`)
+export const patchAnimeComment = (animeId, commentId, content) =>
+  api.patch(`/animes/${animeId}/comments/${commentId}/`, { content })
 
 // 만화 상세 / 단행본 / 매핑 / 댓글
 export const getManga = (id) => api.get(`/mangas/${id}/`)
-export const getMangaEpisodes = (id, volume) =>
-  api.get(`/mangas/${id}/episodes/`, volume ? { volume } : undefined)
 export const getMangaAnimeMappings = (id) => api.get(`/mangas/${id}/anime-mappings/`)
 export const getMangaComments = (id) => api.get(`/mangas/${id}/comments/`)
 export const postMangaComment = (id, content) =>
   api.post(`/mangas/${id}/comments/`, { content })
+export const deleteMangaComment = (mangaId, commentId) =>
+  api.delete(`/mangas/${mangaId}/comments/${commentId}/`)
+export const patchMangaComment = (mangaId, commentId, content) =>
+  api.patch(`/mangas/${mangaId}/comments/${commentId}/`, { content })
 
 // 찜 / 관심작품
 export const addFavorite = (targetType, targetId, statusLabel = '') =>
@@ -57,5 +84,6 @@ export const listAnimes = (params) => api.get('/animes/', params)
 export const listMangas = (params) => api.get('/mangas/', params)
 // 애니 공식 영상(PV/OP/ED). TODO: backend GET /api/v1/animes/:id/media/
 export const getAnimeMedia = (id) => api.get(`/animes/${id}/media/`)
-// AI 추천 챗봇. TODO: backend POST /api/v1/chat/message/
+// AI 추천 챗봇
 export const sendChatMessage = (message) => api.post('/chat/message/', { message })
+export const clearChatSession = () => api.delete('/chat/session/')

@@ -20,7 +20,6 @@ from apps.works.models import (
     AnimeMangaMapping,
     AnimeTag,
     Manga,
-    MangaEpisode,
     MangaTag,
     MetadataTag,
 )
@@ -67,12 +66,10 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         base = Path(settings.BASE_DIR) / "data"
         parser.add_argument("--works", default=str(base / "works.csv"))
-        parser.add_argument("--episodes", default=str(base / "episodes.csv"))
-
+    
     @transaction.atomic
     def handle(self, *args, **opts):
         works_path = Path(opts["works"])
-        episodes_path = Path(opts["episodes"])
 
         if not works_path.exists():
             self.stderr.write(self.style.ERROR(f"파일 없음: {works_path}"))
@@ -169,35 +166,9 @@ class Command(BaseCommand):
                     )
                     n_map += 1
 
-        # 단행본(선택)
-        n_ep = 0
-        if episodes_path.exists():
-            with episodes_path.open(encoding="utf-8-sig", newline="") as f:
-                for row in csv.DictReader(f):
-                    title = s(row.get("manga_title"))
-                    if not title:
-                        continue
-                    manga = Manga.objects.filter(title=title).first()
-                    if not manga:
-                        self.stderr.write(
-                            self.style.WARNING(f"단행본 건너뜀 (만화 없음): {title}")
-                        )
-                        continue
-                    MangaEpisode.objects.update_or_create(
-                        manga=manga,
-                        volume_number=i(row.get("volume_number")),
-                        chapter_number=i(row.get("chapter_number")),
-                        defaults={
-                            "title": s(row.get("title")),
-                            "published_at": s(row.get("published_at")) or None,
-                            "rating_avg": dec(row.get("rating_avg")),
-                        },
-                    )
-                    n_ep += 1
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"적재 완료 — 애니 {n_anime}, 만화 {n_manga}, 매핑 {n_map}, "
-                f"태그연결 {n_tag}, 단행본 {n_ep}"
+                f"적재 완료 — 애니 {n_anime}, 만화 {n_manga}, 매핑 {n_map}, 태그연결 {n_tag}"
             )
         )

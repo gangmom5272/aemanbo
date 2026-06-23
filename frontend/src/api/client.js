@@ -1,9 +1,10 @@
 // 공통 API 클라이언트 (fetch 래퍼)
 // Vite dev 서버가 /api 요청을 Django(127.0.0.1:8000)로 프록시하므로
 // 같은 출처로 동작 -> 세션 쿠키 인증이 그대로 유지됩니다.
-const BASE = import.meta.env.VITE_API_BASE || '/api/v1'
+export const API_BASE = import.meta.env.VITE_API_BASE || '/api/v1'
+const BASE = API_BASE
 
-function getCookie(name) {
+export function getCookie(name) {
   const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)')
   return match ? decodeURIComponent(match.pop()) : ''
 }

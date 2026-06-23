@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Anime, AnimeMangaMapping, Manga, MangaEpisode, MetadataTag
+from .models import Anime, AnimeMangaMapping, Manga, MetadataTag
 
 
 class MetadataTagSerializer(serializers.ModelSerializer):
@@ -106,19 +106,6 @@ class MangaDetailSerializer(serializers.ModelSerializer):
         )
 
 
-class MangaEpisodeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = MangaEpisode
-        fields = (
-            "id",
-            "volume_number",
-            "chapter_number",
-            "title",
-            "published_at",
-            "rating_avg",
-        )
-
-
 class AnimeMangaMappingSerializer(serializers.ModelSerializer):
     anime = AnimeSummarySerializer(read_only=True)
     manga = MangaSummarySerializer(read_only=True)
@@ -144,8 +131,8 @@ class AnimeMangaMappingSerializer(serializers.ModelSerializer):
 
 
 class MappingCardSerializer(serializers.ModelSerializer):
-    anime = AnimeSummarySerializer(read_only=True)
-    manga = MangaSummarySerializer(read_only=True)
+    anime = AnimeListSerializer(read_only=True)
+    manga = MangaListSerializer(read_only=True)
 
     class Meta:
         model = AnimeMangaMapping

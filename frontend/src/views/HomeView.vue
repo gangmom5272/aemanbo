@@ -62,7 +62,7 @@ onMounted(async () => {
       <!-- 추천 매핑 카드 -->
       <section v-if="mappingCards.length" class="block">
         <div class="head">
-          <div class="titles"><span class="kicker">// PICK UP</span><h2>오늘의 이어보기</h2></div>
+          <div class="titles"><h2>🎲 오늘의 랜덤 픽</h2></div>
           <span class="more" @click="router.push('/anime')">전체 애니 ›</span>
         </div>
         <div class="row">
@@ -72,14 +72,13 @@ onMounted(async () => {
             :work="m.anime"
             kind="anime"
             variant="row"
-            :caption="m.mapping_text"
           />
         </div>
       </section>
 
       <section class="block">
         <div class="head">
-          <div class="titles"><span class="kicker">// THIS SEASON</span><h2>인기 애니</h2></div>
+          <div class="titles"><h2>인기 애니</h2></div>
           <span class="more" @click="router.push('/anime')">전체 애니 ›</span>
         </div>
         <div v-if="loading" class="state-msg">불러오는 중…</div>
@@ -91,7 +90,7 @@ onMounted(async () => {
 
       <section class="block">
         <div class="head">
-          <div class="titles"><span class="kicker">// THIS QUARTER</span><h2>인기 만화</h2></div>
+          <div class="titles"><h2>인기 만화</h2></div>
           <span class="more" @click="router.push('/manga')">전체 만화 ›</span>
         </div>
         <div v-if="loading" class="state-msg">불러오는 중…</div>

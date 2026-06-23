@@ -25,18 +25,8 @@ async function login(provider) {
     <div class="brand-panel">
       <div class="logo" style="position:relative;z-index:1"><span class="glyph"></span><span class="word" style="font-size:23px">애<b>만</b>보</span></div>
       <div class="bp-mid">
-        <div class="bp-eyebrow">// 애니 보고 · 만화 보고</div>
         <h1>애니 다음은,<br /><span class="accent">원작에서.</span></h1>
         <p>애니가 멈춘 바로 그 장면부터 원작 만화 몇 권 몇 화인지, 애만보가 정확히 짚어드려요.</p>
-        <div class="mini-bridge">
-          <div class="mb-cover cv-anime"><span class="t">주술<br />회전</span></div>
-          <div class="mb-seam">
-            <span class="coord">원작 <b>8권 64화</b>부터</span>
-            <span class="arrow"><span class="ln"></span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-            <span class="lbl">ANIME → MANGA</span>
-          </div>
-          <div class="mb-cover cv-manga"><span class="t">주술<br />회전</span></div>
-        </div>
       </div>
       <div class="bp-foot">© 2026 애만보 — 모든 매핑 정보는 검수 후 제공됩니다.</div>
     </div>
