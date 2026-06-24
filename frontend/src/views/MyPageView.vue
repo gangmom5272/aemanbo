@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getSession, getMyFavorites, getMyComments, logout, updateMyProfile, uploadAvatar } from '../api'
+import { getSession, getMyFavorites, getMyComments, logout, updateMyProfile, uploadAvatar, getGenres } from '../api'
 import { animeGradient, mangaColor, statusBadge, animeStatusBadge } from '../utils/cover'
 
 const router = useRouter()
@@ -21,13 +21,32 @@ const avatarFile = ref(null)
 const avatarPreview = ref('')
 const saving = ref(false)
 const editError = ref('')
+const genres = ref([])
+const editGenres = ref([])
 
-function openEdit() {
+async function openEdit() {
   editNickname.value = user.value?.nickname || ''
+  editGenres.value = [...(user.value?.preferred_genres || [])]
   avatarFile.value = null
   avatarPreview.value = ''
   editError.value = ''
   showEdit.value = true
+  if (!genres.value.length) {
+    try {
+      const g = await getGenres()
+      genres.value = g.results || []
+    } catch (_) {}
+  }
+}
+function toggleGenre(v) {
+  const i = editGenres.value.indexOf(v)
+  if (i >= 0) editGenres.value.splice(i, 1)
+  else editGenres.value.push(v)
+}
+function sameGenres(a, b) {
+  if (a.length !== b.length) return false
+  const s = new Set(a)
+  return b.every((x) => s.has(x))
 }
 function onPickFile(e) {
   const f = e.target.files && e.target.files[0]
@@ -44,10 +63,18 @@ async function saveProfile() {
       const r = await uploadAvatar(avatarFile.value)
       if (user.value) user.value.profile_image_url = r.profile_image_url
     }
+    const payload = {}
     const nick = editNickname.value.trim()
-    if (nick && nick !== user.value?.nickname) {
-      const u = await updateMyProfile({ nickname: nick })
-      if (user.value) user.value.nickname = u.nickname
+    if (nick && nick !== user.value?.nickname) payload.nickname = nick
+    if (!sameGenres(editGenres.value, user.value?.preferred_genres || [])) {
+      payload.preferred_genres = editGenres.value
+    }
+    if (Object.keys(payload).length) {
+      const u = await updateMyProfile(payload)
+      if (user.value) {
+        if (u.nickname !== undefined) user.value.nickname = u.nickname
+        if (u.preferred_genres !== undefined) user.value.preferred_genres = u.preferred_genres
+      }
     }
     showEdit.value = false
   } catch (e) {
@@ -175,6 +202,19 @@ onMounted(async () => {
             <span>닉네임</span>
             <input v-model="editNickname" maxlength="50" placeholder="닉네임" @keyup.enter="saveProfile" />
           </label>
+          <div class="edit-field">
+            <span>선호 장르</span>
+            <div class="genre-grid">
+              <button
+                v-for="g in genres"
+                :key="g.value"
+                type="button"
+                class="genre-chip"
+                :class="{ on: editGenres.includes(g.value) }"
+                @click="toggleGenre(g.value)"
+              >{{ g.label }}</button>
+            </div>
+          </div>
           <div v-if="editError" class="edit-err">{{ editError }}</div>
           <div class="edit-actions">
             <button class="pbtn" @click="showEdit = false">취소</button>
@@ -268,6 +308,31 @@ onMounted(async () => {
   color: var(--spot-deep);
   font-size: 13px;
   margin-top: 10px;
+}
+.genre-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.genre-chip {
+  font-size: 13px;
+  padding: 7px 13px;
+  border-radius: 30px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-2);
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.genre-chip:hover {
+  border-color: var(--glow);
+}
+.genre-chip.on {
+  background: var(--spot);
+  border-color: var(--spot);
+  color: #fff;
+  font-weight: 600;
 }
 .edit-actions {
   display: flex;

@@ -10,7 +10,7 @@ const input = ref('')
 const loading = ref(false)
 const listEl = ref(null)
 
-const GREETING = { role: 'bot', text: '안녕하세요! 어떤 작품을 찾으세요? 예: "주술회전 비슷한 거 추천해줘", "잔잔한 일상물 보고 싶어"', recs: [] }
+const GREETING = { role: 'bot', text: '안녕하세요! 기분이나 상황을 자유롭게 적어주세요. 예: "주술회전 비슷한 거", "잔잔한 일상물 보고 싶어", "울고 싶은 날 볼 작품"', recs: [] }
 const messages = ref([GREETING])
 
 function toggle() {

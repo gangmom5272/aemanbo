@@ -3,10 +3,44 @@ from rest_framework import serializers
 from .models import Anime, AnimeMangaMapping, Manga, MetadataTag
 
 
+# AniList 장르 영문 → 한글 표기
+GENRE_KO = {
+    "Action": "액션",
+    "Adventure": "모험",
+    "Comedy": "코미디",
+    "Drama": "드라마",
+    "Ecchi": "에치",
+    "Fantasy": "판타지",
+    "Hentai": "성인",
+    "Horror": "공포",
+    "Mahou Shoujo": "마법소녀",
+    "Mecha": "메카",
+    "Music": "음악",
+    "Mystery": "미스터리",
+    "Psychological": "심리",
+    "Romance": "로맨스",
+    "Sci-Fi": "SF",
+    "Slice of Life": "일상",
+    "Sports": "스포츠",
+    "Supernatural": "초자연",
+    "Thriller": "스릴러",
+}
+
+
+def to_korean_genre(name):
+    """장르명은 한글로 변환, 매핑에 없으면(스튜디오/기타 태그) 원문 유지."""
+    return GENRE_KO.get(name, name)
+
+
 class MetadataTagSerializer(serializers.ModelSerializer):
+    name = serializers.SerializerMethodField()
+
     class Meta:
         model = MetadataTag
         fields = ("id", "name", "type")
+
+    def get_name(self, obj):
+        return to_korean_genre(obj.name)
 
 
 class AnimeSummarySerializer(serializers.ModelSerializer):
@@ -60,7 +94,11 @@ class MangaListSerializer(serializers.ModelSerializer):
 
 
 class AnimeDetailSerializer(serializers.ModelSerializer):
-    tags = MetadataTagSerializer(many=True, read_only=True)
+    tags = serializers.SerializerMethodField()
+
+    def get_tags(self, obj):
+        genres = [t for t in obj.tags.all() if t.type == MetadataTag.TagType.GENRE]
+        return MetadataTagSerializer(genres, many=True).data
 
     class Meta:
         model = Anime
@@ -84,7 +122,11 @@ class AnimeDetailSerializer(serializers.ModelSerializer):
 
 
 class MangaDetailSerializer(serializers.ModelSerializer):
-    tags = MetadataTagSerializer(many=True, read_only=True)
+    tags = serializers.SerializerMethodField()
+
+    def get_tags(self, obj):
+        genres = [t for t in obj.tags.all() if t.type == MetadataTag.TagType.GENRE]
+        return MetadataTagSerializer(genres, many=True).data
 
     class Meta:
         model = Manga

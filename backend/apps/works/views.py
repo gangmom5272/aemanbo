@@ -15,9 +15,27 @@ from .serializers import (
 from .services import get_home_data, get_recommended_mappings, search_works
 
 
+def _is_admin(user):
+    return bool(
+        user
+        and user.is_authenticated
+        and (getattr(user, "role", "") == "ADMIN" or user.is_superuser)
+    )
+
+
+class GenreListAPIView(APIView):
+    def get(self, request):
+        # 설문/프로필 편집용 장르 목록 (영문 value + 한글 label)
+        from .serializers import GENRE_KO
+
+        genres = [{"value": en, "label": ko} for en, ko in GENRE_KO.items()]
+        genres.sort(key=lambda g: g["label"])
+        return Response({"results": genres})
+
+
 class HomeAPIView(APIView):
     def get(self, request):
-        home_data = get_home_data()
+        home_data = get_home_data(user=request.user)
 
         return Response(
             {
@@ -100,6 +118,23 @@ class AnimeDetailAPIView(APIView):
         serializer = AnimeDetailSerializer(anime)
         return Response(serializer.data)
 
+    def patch(self, request, anime_id):
+        # 관리자만 제목/원제/줄거리 수정
+        if not _is_admin(request.user):
+            return Response({"detail": "관리자만 수정할 수 있어요."}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            anime = Anime.objects.get(id=anime_id)
+        except Anime.DoesNotExist:
+            return Response({"detail": "Anime not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if "title" in request.data and not str(request.data.get("title") or "").strip():
+            return Response({"detail": "제목은 비울 수 없어요."}, status=status.HTTP_400_BAD_REQUEST)
+        for f in ("title", "original_title", "synopsis"):
+            if f in request.data:
+                setattr(anime, f, str(request.data.get(f) or "").strip())
+        anime.save()
+        return Response(AnimeDetailSerializer(anime).data)
+
 
 class AnimeMangaMappingsAPIView(APIView):
     def get(self, request, anime_id):
@@ -136,6 +171,23 @@ class MangaDetailAPIView(APIView):
 
         serializer = MangaDetailSerializer(manga)
         return Response(serializer.data)
+
+    def patch(self, request, manga_id):
+        # 관리자만 제목/원제/줄거리 수정
+        if not _is_admin(request.user):
+            return Response({"detail": "관리자만 수정할 수 있어요."}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            manga = Manga.objects.get(id=manga_id)
+        except Manga.DoesNotExist:
+            return Response({"detail": "Manga not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if "title" in request.data and not str(request.data.get("title") or "").strip():
+            return Response({"detail": "제목은 비울 수 없어요."}, status=status.HTTP_400_BAD_REQUEST)
+        for f in ("title", "original_title", "description"):
+            if f in request.data:
+                setattr(manga, f, str(request.data.get(f) or "").strip())
+        manga.save()
+        return Response(MangaDetailSerializer(manga).data)
 
 
 class MangaAnimeMappingsAPIView(APIView):

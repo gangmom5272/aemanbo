@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getManga, getMangaAnimeMappings, getMangaComments, postMangaComment, deleteMangaComment, patchMangaComment, addFavorite, removeFavorite, getMyFavorites, getSession } from '../api'
+import { getManga, getMangaAnimeMappings, getMangaComments, postMangaComment, deleteMangaComment, patchMangaComment, addFavorite, removeFavorite, getMyFavorites, getSession, updateMangaAdmin } from '../api'
 import { animeGradient, mangaColor, realImage, ratingText } from '../utils/cover'
 
 const props = defineProps({ id: { type: [String, Number], required: true } })
@@ -19,6 +19,42 @@ const showAnimeModal = ref(false)
 const myUserId = ref(null)
 const editingId = ref(null)
 const editText = ref('')
+
+// 관리자 작품 편집
+const isAdmin = ref(false)
+const showAdminEdit = ref(false)
+const adminForm = ref({ title: '', original_title: '', description: '' })
+const savingAdmin = ref(false)
+const adminErr = ref('')
+
+function openAdminEdit() {
+  adminForm.value = {
+    title: manga.value?.title || '',
+    original_title: manga.value?.original_title || '',
+    description: manga.value?.description || '',
+  }
+  adminErr.value = ''
+  showAdminEdit.value = true
+}
+async function saveAdminEdit() {
+  if (savingAdmin.value) return
+  if (!adminForm.value.title.trim()) { adminErr.value = '제목은 비울 수 없어요.'; return }
+  savingAdmin.value = true
+  adminErr.value = ''
+  try {
+    const updated = await updateMangaAdmin(manga.value.id, {
+      title: adminForm.value.title.trim(),
+      original_title: adminForm.value.original_title.trim(),
+      description: adminForm.value.description.trim(),
+    })
+    manga.value = { ...manga.value, ...updated }
+    showAdminEdit.value = false
+  } catch (e) {
+    adminErr.value = (e.data && e.data.detail) || '수정에 실패했어요.'
+  } finally {
+    savingAdmin.value = false
+  }
+}
 
 async function refreshComments() {
   const r = await getMangaComments(manga.value.id)
@@ -60,9 +96,13 @@ function goAnime(id) {
 
 const band = computed(() => (manga.value ? mangaColor(manga.value.title) : '#7C4DEF'))
 const cover = computed(() => realImage(manga.value?.cover_image_url))
-// 연결된 애니 매핑을 만화 진행 순(권/화)으로 정렬해 전부 표시
+// 연결된 애니 매핑을 방영 연도 순(시즌 순서)으로 정렬해 전부 표시
 const sortedMappings = computed(() =>
   [...mappings.value].sort((a, b) => {
+    const ay = a.anime?.release_year || 9999
+    const by = b.anime?.release_year || 9999
+    if (ay !== by) return ay - by
+    // 같은 연도면 원작 진행 순(권/화)으로 보조 정렬
     const av = (a.manga_volume_from || 0) * 100000 + (a.manga_chapter_from || 0)
     const bv = (b.manga_volume_from || 0) * 100000 + (b.manga_chapter_from || 0)
     return av - bv
@@ -71,10 +111,10 @@ const sortedMappings = computed(() =>
 
 function rangeText(m) {
   if (!m) return ''
-  const vf = m.manga_volume_from, vt = m.manga_volume_to, cf = m.manga_chapter_from, ct = m.manga_chapter_to
-  if (vf && vt) return `${vf}권 ~ ${vt}권${ct ? ' ' + ct + '화' : ''}`
-  if (cf && ct) return `${cf}화 ~ ${ct}화`
-  return m.mapping_text
+  // 이어볼 지점(continue)으로 일관 표기 — 작품마다 동일 형식
+  if (m.continue_volume && m.continue_chapter) return `${m.continue_volume}권 ${m.continue_chapter}화부터`
+  if (m.continue_chapter) return `${m.continue_chapter}화부터`
+  return m.mapping_text || '원작 만화 보기'
 }
 
 async function toggleFavorite() {
@@ -121,6 +161,7 @@ onMounted(async () => {
       const s = await getSession()
       if (s.authenticated) {
         myUserId.value = s.user?.id
+        isAdmin.value = s.user?.role === 'ADMIN'
         const favs = await getMyFavorites()
         const f = (favs.results || []).find((x) => x.target_type === 'MANGA' && x.target_id === manga.value.id)
         if (f) favId.value = f.id
@@ -152,11 +193,11 @@ onMounted(async () => {
           <div class="poster cv-manga">
             <img v-if="cover" class="real" :src="cover" :alt="manga.title" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1" />
             <span class="ribbon">코믹스</span>
-            <span class="pt">{{ manga.title }}</span>
+            <span v-if="!cover" class="pt">{{ manga.title }}</span>
           </div>
           <div class="headinfo">
             <span class="kind manga">● 만화 · 원작</span>
-            <h1>{{ manga.title }}</h1>
+            <h1>{{ manga.title }}<button v-if="isAdmin" class="admin-edit" title="관리자 편집" @click="openAdminEdit">✎ 편집</button></h1>
             <div v-if="manga.original_title" class="orig">{{ manga.original_title }}</div>
             <div class="metarow">
               <span v-if="manga.author" class="chip">작가 <b>{{ manga.author }}</b></span>
@@ -166,7 +207,7 @@ onMounted(async () => {
               <span v-else class="chip">연재중</span>
             </div>
             <div class="statline">
-              <div class="rate"><span class="star">★</span><span class="num">{{ ratingText(manga.rating_avg) }}</span><span class="cnt">{{ manga.rating_count }}명 평가</span></div>
+              <div class="rate"><span class="star">★</span><span class="num">{{ ratingText(manga.rating_avg) }}</span></div>
               <div class="actions">
                 <button class="btn" :class="{ active: favId }" :aria-label="favId ? '찜 취소' : '찜하기'" @click="toggleFavorite">{{ favId ? '♥' : '♡' }}</button>
               </div>
@@ -187,7 +228,9 @@ onMounted(async () => {
 
         <!-- 애니 매핑 (애니 상세의 map-strip 디자인과 통일, 클릭 시 모달) -->
         <div v-if="sortedMappings.length" class="map-strip" style="cursor:pointer" @click="showAnimeModal = true">
-          <div class="ms-cover cv-anime" :style="{ background: animeGradient(sortedMappings[0].anime?.title || manga.title) }"></div>
+          <div class="ms-cover cv-anime" :style="{ background: animeGradient(sortedMappings[0].anime?.title || manga.title) }">
+            <img v-if="realImage(sortedMappings[0].anime?.poster_image_url)" :src="realImage(sortedMappings[0].anime?.poster_image_url)" :alt="sortedMappings[0].anime?.title" class="ms-cover-img" />
+          </div>
           <div class="ms-main">
             <div class="ms-label">📺 원작을 봤다면, <b>이 작품의 애니는</b></div>
             <div class="ms-coord">{{ sortedMappings.length }}개 시즌<small>이어보기 매핑 보기</small></div>
@@ -256,12 +299,15 @@ onMounted(async () => {
           <div class="modal-list">
             <div v-for="m in sortedMappings" :key="m.id" class="modal-map">
               <div class="linkcover">
-                <div class="lc cv-anime" :style="{ background: animeGradient(m.anime?.title || '') }"><span class="lct">{{ m.anime?.title }}</span></div>
+                <div class="lc cv-anime" :style="{ background: animeGradient(m.anime?.title || '') }">
+                  <img v-if="realImage(m.anime?.poster_image_url)" :src="realImage(m.anime?.poster_image_url)" :alt="m.anime?.title" class="lc-img" />
+                  <span v-else class="lct">{{ m.anime?.title }}</span>
+                </div>
                 <div class="ld"><div class="ln">{{ m.anime?.title }}</div><div class="lm">{{ m.anime?.release_year }}</div></div>
               </div>
               <div class="coordbox">
                 <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></div>
-                <div class="ctxt"><div class="cl">애니가 다루는 범위</div><div class="cv"><b>{{ rangeText(m) }}</b></div></div>
+                <div class="ctxt"><div class="cl">원작 이어볼 지점</div><div class="cv"><b>{{ rangeText(m) }}</b></div></div>
               </div>
               <button v-if="m.anime" class="go" @click="goAnime(m.anime.id)">
                 애니 정보 보기
@@ -271,11 +317,102 @@ onMounted(async () => {
           </div>
         </div>
       </div>
+
+      <!-- 관리자 작품 편집 모달 -->
+      <div v-if="showAdminEdit" class="admin-overlay" @click.self="showAdminEdit = false">
+        <div class="admin-panel">
+          <button class="admin-close" @click="showAdminEdit = false" aria-label="닫기">✕</button>
+          <h3>작품 편집 (관리자)</h3>
+          <label class="af"><span>제목</span><input v-model="adminForm.title" maxlength="200" /></label>
+          <label class="af"><span>원제</span><input v-model="adminForm.original_title" maxlength="200" /></label>
+          <label class="af"><span>줄거리</span><textarea v-model="adminForm.description" rows="6"></textarea></label>
+          <div v-if="adminErr" class="af-err">{{ adminErr }}</div>
+          <div class="af-actions">
+            <button class="pbtn" @click="showAdminEdit = false">취소</button>
+            <button class="pbtn primary" :disabled="savingAdmin" @click="saveAdminEdit">{{ savingAdmin ? '저장 중…' : '저장' }}</button>
+          </div>
+        </div>
+      </div>
     </template>
   </div>
 </template>
 
 <style scoped>
+.admin-edit {
+  margin-left: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 20px;
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  vertical-align: middle;
+}
+.admin-edit:hover { border-color: var(--spot); color: var(--spot-deep); }
+.admin-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(26, 22, 34, 0.55);
+  backdrop-filter: blur(3px);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+.admin-panel {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 40px 80px -30px rgba(20, 10, 40, 0.6);
+}
+.admin-panel h3 {
+  font-family: 'Black Han Sans', sans-serif;
+  font-weight: 400;
+  font-size: 21px;
+  margin-bottom: 16px;
+}
+.admin-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--line-2);
+  background: var(--surface-2);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.af {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.af span {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.af input, .af textarea {
+  border: 1px solid var(--line-2);
+  border-radius: 11px;
+  padding: 10px 13px;
+  font-family: inherit;
+  font-size: 14px;
+  background: var(--surface-2);
+  outline: none;
+  resize: vertical;
+}
+.af input:focus, .af textarea:focus { border-color: var(--glow); }
+.af-err { color: var(--spot-deep); font-size: 13px; margin-bottom: 10px; }
+.af-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
 .info-banner {
   display: flex;
   gap: 14px;
@@ -407,6 +544,26 @@ onMounted(async () => {
 }
 .modal-map .lc {
   width: 56px;
+  position: relative;
+  overflow: hidden;
+}
+.modal-map .lc-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.map-strip .ms-cover {
+  position: relative;
+  overflow: hidden;
+}
+.map-strip .ms-cover-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .modal-map .ld .ln {
   font-size: 14.5px;

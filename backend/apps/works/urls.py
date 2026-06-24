@@ -5,6 +5,7 @@ from .views import (
     AnimeListAPIView,
     MangaListAPIView,
     AnimeMangaMappingsAPIView,
+    GenreListAPIView,
     HomeAPIView,
     MangaAnimeMappingsAPIView,
     MangaDetailAPIView,
@@ -16,6 +17,7 @@ app_name = "works"
 
 urlpatterns = [
     path("home/", HomeAPIView.as_view(), name="home"),
+    path("genres/", GenreListAPIView.as_view(), name="genre-list"),
     path("search/", SearchAPIView.as_view(), name="search"),
     path(
         "mappings/recommendations/",

@@ -28,12 +28,19 @@ export async function uploadAvatar(file) {
 // 홈 (추천 매핑 + 인기 애니/만화)
 export const getHome = () => api.get('/home/')
 
+// 장르 목록 (설문/프로필 편집용) — [{ value, label }]
+export const getGenres = () => api.get('/genres/')
+
 // 통합 검색
 export const search = (keyword) => api.get('/search/', { keyword })
 
 // 추천 매핑 더보기
 export const getRecommendedMappings = (limit = 20) =>
   api.get('/mappings/recommendations/', { limit })
+
+// 관리자 전용 작품 수정 (제목/원제/줄거리)
+export const updateAnimeAdmin = (id, payload) => api.patch(`/animes/${id}/`, payload)
+export const updateMangaAdmin = (id, payload) => api.patch(`/mangas/${id}/`, payload)
 
 // 애니 상세 / 매핑 / 댓글
 export const getAnime = (id) => api.get(`/animes/${id}/`)
@@ -87,3 +94,6 @@ export const getAnimeMedia = (id) => api.get(`/animes/${id}/media/`)
 // AI 추천 챗봇
 export const sendChatMessage = (message) => api.post('/chat/message/', { message })
 export const clearChatSession = () => api.delete('/chat/session/')
+
+// 자연어/설명 검색 폴백 (일반 검색 0건일 때만 호출)
+export const aiSearch = (keyword) => api.post('/search/ai/', { keyword })

@@ -24,6 +24,10 @@ class User(AbstractUser):
     )
     joined_at = models.DateTimeField(default=timezone.now)
     deleted_at = models.DateTimeField(null=True, blank=True)
+    # 선호 장르(영문 장르명 리스트, 예: ["Action", "Romance"])
+    preferred_genres = models.JSONField(default=list, blank=True)
+    # 첫 로그인 선호 장르 설문 완료/건너뛰기 여부
+    onboarded = models.BooleanField(default=False)
 
     def __str__(self):
         return self.nickname or self.username

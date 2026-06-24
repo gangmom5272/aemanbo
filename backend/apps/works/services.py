@@ -10,9 +10,9 @@ DEFAULT_RECOMMENDATION_LIMIT = 20
 MAX_RECOMMENDATION_LIMIT = 50
 
 
-def get_home_data():
+def get_home_data(user=None):
     return {
-        "recommended_mappings": get_recommended_mappings(limit=6),
+        "recommended_mappings": get_recommended_mappings(limit=6, user=user),
         "popular_animes": Anime.objects.order_by(
             "-favorite_count",
             "-rating_avg",
@@ -112,9 +112,46 @@ def search_works(keyword, limit=DEFAULT_SEARCH_LIMIT):
     }
 
 
-def get_recommended_mappings(limit=DEFAULT_RECOMMENDATION_LIMIT):
+def search_by_content(keyword, limit=12):
+    """제목 검색이 0건일 때 폴백용: 줄거리/장르 등 본문에서 키워드 검색."""
+    kw = (keyword or "").strip()
+    if not kw:
+        return {"animes": [], "mangas": []}
+    anime_q = Q(synopsis__icontains=kw) | Q(tags__name__icontains=kw)
+    manga_q = Q(description__icontains=kw) | Q(tags__name__icontains=kw)
+    animes = list(
+        Anime.objects.filter(anime_q).distinct()
+        .order_by("-favorite_count", "-rating_avg", "title")[:limit]
+    )
+    mangas = list(
+        Manga.objects.filter(manga_q).distinct()
+        .order_by("-favorite_count", "-rating_avg", "title")[:limit]
+    )
+    return {"animes": animes, "mangas": mangas}
+
+
+def get_recommended_mappings(limit=DEFAULT_RECOMMENDATION_LIMIT, user=None):
     safe_limit = max(1, min(limit, MAX_RECOMMENDATION_LIMIT))
-    # 무작위 추천: 호출(=새로고침)마다 다른 매핑을 반환
-    return AnimeMangaMapping.objects.select_related("anime", "manga").order_by(
-        "?"
-    )[:safe_limit]
+    base = AnimeMangaMapping.objects.select_related("anime", "manga")
+
+    prefs = []
+    if user is not None and getattr(user, "is_authenticated", False):
+        prefs = [g for g in (getattr(user, "preferred_genres", None) or []) if g]
+
+    # 선호 장르가 없으면 기존처럼 전체 무작위
+    if not prefs:
+        return list(base.order_by("?")[:safe_limit])
+
+    # 선호 장르 우선: 해당 장르 애니 매핑을 무작위로 채우고,
+    # 부족하면 일반 무작위로 보강
+    preferred = list(
+        base.filter(anime__tags__name__in=prefs).distinct().order_by("?")[:safe_limit]
+    )
+    if len(preferred) < safe_limit:
+        need = safe_limit - len(preferred)
+        used_ids = [m.id for m in preferred]
+        fill = list(
+            base.exclude(id__in=used_ids).order_by("?")[:need]
+        )
+        preferred += fill
+    return preferred[:safe_limit]

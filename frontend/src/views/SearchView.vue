@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { search } from '../api'
+import { search, aiSearch } from '../api'
 import WorkCard from '../components/WorkCard.vue'
 
 const route = useRoute()
@@ -9,9 +9,14 @@ const loading = ref(false)
 const keyword = ref('')
 const animes = ref([])
 const mangas = ref([])
+const aiRecs = ref([])
+const aiSource = ref('')
+const aiLoading = ref(false)
 
 async function run(q) {
   keyword.value = q
+  aiRecs.value = []
+  aiSource.value = ''
   if (!q) return
   loading.value = true
   try {
@@ -23,6 +28,19 @@ async function run(q) {
     mangas.value = []
   } finally {
     loading.value = false
+  }
+  // 일반 검색 0건일 때만 AI 폴백 호출
+  if (!animes.value.length && !mangas.value.length) {
+    aiLoading.value = true
+    try {
+      const data = await aiSearch(q)
+      aiRecs.value = data.recommendations || []
+      aiSource.value = data.source || ''
+    } catch (e) {
+      aiRecs.value = []
+    } finally {
+      aiLoading.value = false
+    }
   }
 }
 
@@ -49,9 +67,25 @@ watch(() => route.query.keyword, (q) => run((q || '').toString()))
         <div class="grid"><WorkCard v-for="m in mangas" :key="m.id" :work="m" kind="manga" variant="grid" /></div>
       </section>
 
-      <div v-if="!animes.length && !mangas.length && keyword" class="state-msg">
-        <div class="big">검색 결과가 없어요</div>다른 키워드로 시도해 보세요.
-      </div>
+      <template v-if="!animes.length && !mangas.length && keyword">
+        <div v-if="aiLoading" class="state-msg">정확히 일치하는 결과가 없어, AI가 찾고 있어요…</div>
+        <section v-else-if="aiRecs.length" class="block">
+          <div class="head"><div class="titles"><h2>혹시 이 작품을 찾으세요?</h2></div></div>
+          <p class="ai-note">{{ aiSource === 'ai' ? '✦ 제목과 일치하는 결과가 없어, 검색어를 바탕으로 AI가 추천했어요.' : '제목과 일치하진 않지만, 줄거리·장르에서 관련된 작품이에요.' }}</p>
+          <div class="grid"><WorkCard v-for="r in aiRecs" :key="r.type + '-' + r.id" :work="r" :kind="r.type" variant="grid" /></div>
+        </section>
+        <div v-else class="state-msg">
+          <div class="big">검색 결과가 없어요</div>다른 키워드로 시도해 보세요.
+        </div>
+      </template>
     </template>
   </div>
 </template>
+
+<style scoped>
+.ai-note {
+  font-size: 13px;
+  color: var(--muted);
+  margin: -6px 0 16px;
+}
+</style>

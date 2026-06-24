@@ -68,6 +68,101 @@ def ask_llm(history, message):
     return reply, titles
 
 
+SEARCH_PROMPT = (
+    "너는 애니/만화 검색 보정기야. 사용자가 제목을 정확히 모르거나 줄거리·특징을 "
+    "설명형으로 검색했을 때, 해당할 가능성이 높은 작품의 '한국 정식 제목'을 추측해.\n"
+    "- 확신이 낮아도 그럴듯한 후보를 제시해.\n"
+    "- 한국에서 통용되는 정식 명칭으로만 표기(예: '진격의 거인').\n"
+    "- 설명만으로 떠오르는 게 없으면 빈 배열.\n"
+    '다른 텍스트 없이 JSON만: {"titles": ["제목", ...]} (최대 8개).'
+)
+
+
+def search_titles(query):
+    """모호/설명형 검색어 → 추측 작품 제목 리스트."""
+    api_key = os.environ.get("OPENAI_API_KEY", "")
+    if not api_key:
+        raise MissingApiKeyError("OPENAI_API_KEY is not set")
+
+    resp = requests.post(
+        OPENAI_URL,
+        headers={"Authorization": f"Bearer {api_key}"},
+        json={
+            "model": MODEL,
+            "messages": [
+                {"role": "system", "content": SEARCH_PROMPT},
+                {"role": "user", "content": query},
+            ],
+            "temperature": 0.3,
+            "response_format": {"type": "json_object"},
+        },
+        timeout=20,
+    )
+    if resp.status_code != 200:
+        try:
+            detail = resp.json().get("error", {}).get("message", "")
+        except ValueError:
+            detail = resp.text[:300]
+        raise LLMError(f"OpenAI {resp.status_code}: {detail}")
+    content = resp.json()["choices"][0]["message"]["content"]
+    data = json.loads(content)
+    return [t for t in (data.get("titles") or []) if isinstance(t, str)]
+
+
+CATALOG_PROMPT = (
+    "아래 [작품목록]은 우리 서비스 DB에 있는 작품 전체야. "
+    "사용자의 [검색어](제목 일부·줄거리 설명·분위기·키워드 등)에 가장 잘 맞는 작품을 "
+    "반드시 [작품목록] 안에서만 골라, 각 작품 앞의 번호를 반환해. "
+    "목록에 없는 작품은 절대 지어내지 마. 관련 작품이 없으면 빈 배열.\n"
+    '다른 텍스트 없이 JSON만: {"picks": [번호, ...]} (최대 8개, 관련도 높은 순).'
+)
+
+
+def search_picks_from_catalog(query):
+    """검색어 → DB 작품목록에서 LLM이 직접 고른 (type, id, title) 리스트.
+    LLM이 DB에 실재하는 작품만 번호로 선택하므로 글자 매칭 실패가 없다."""
+    api_key = os.environ.get("OPENAI_API_KEY", "")
+    if not api_key:
+        raise MissingApiKeyError("OPENAI_API_KEY is not set")
+
+    items = [("anime", a_id, title) for a_id, title in Anime.objects.values_list("id", "title")]
+    items += [("manga", m_id, title) for m_id, title in Manga.objects.values_list("id", "title")]
+    catalog = "\n".join(f"{i + 1}. {it[2]}" for i, it in enumerate(items))
+    user_msg = f"[검색어]\n{query}\n\n[작품목록]\n{catalog}"
+
+    resp = requests.post(
+        OPENAI_URL,
+        headers={"Authorization": f"Bearer {api_key}"},
+        json={
+            "model": MODEL,
+            "messages": [
+                {"role": "system", "content": CATALOG_PROMPT},
+                {"role": "user", "content": user_msg},
+            ],
+            "temperature": 0.2,
+            "response_format": {"type": "json_object"},
+        },
+        timeout=40,
+    )
+    if resp.status_code != 200:
+        try:
+            detail = resp.json().get("error", {}).get("message", "")
+        except ValueError:
+            detail = resp.text[:300]
+        raise LLMError(f"OpenAI {resp.status_code}: {detail}")
+    content = resp.json()["choices"][0]["message"]["content"]
+    data = json.loads(content)
+    picks = []
+    for p in (data.get("picks") or []):
+        try:
+            n = int(p)
+        except (TypeError, ValueError):
+            continue
+        if 1 <= n <= len(items):
+            picks.append(items[n - 1])
+    return picks
+
+
 def match_recommendations(titles, limit=6):
     recs = []
     seen = set()

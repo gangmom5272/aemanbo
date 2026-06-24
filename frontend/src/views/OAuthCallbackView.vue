@@ -15,9 +15,11 @@ onMounted(async () => {
     return
   }
   try {
-    await oauthCallback(provider, code.toString())
+    const res = await oauthCallback(provider, code.toString())
     message.value = '로그인 성공! 이동 중…'
-    setTimeout(() => router.replace('/mypage'), 600)
+    // 신규 가입자(혹은 설문 미완료)는 홈으로 → 선호 장르 설문 모달 노출
+    const needsSurvey = res && (res.created || (res.user && !res.user.onboarded))
+    setTimeout(() => router.replace(needsSurvey ? '/' : '/mypage'), 600)
   } catch (e) {
     message.value = '로그인에 실패했어요. 다시 시도해 주세요.'
     setTimeout(() => router.replace('/login'), 1500)

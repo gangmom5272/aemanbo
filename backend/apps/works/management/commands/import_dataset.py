@@ -66,7 +66,12 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         base = Path(settings.BASE_DIR) / "data"
         parser.add_argument("--works", default=str(base / "works.csv"))
-    
+        parser.add_argument(
+            "--fresh",
+            action="store_true",
+            help="적재 전 기존 작품/매핑/태그를 모두 삭제 (옛 import로 누적된 중복 제거)",
+        )
+
     @transaction.atomic
     def handle(self, *args, **opts):
         works_path = Path(opts["works"])
@@ -74,6 +79,16 @@ class Command(BaseCommand):
         if not works_path.exists():
             self.stderr.write(self.style.ERROR(f"파일 없음: {works_path}"))
             return
+
+        if opts["fresh"]:
+            # 누적된 중복(옛 제목 등) 제거를 위해 작품 관련 테이블 초기화
+            AnimeMangaMapping.objects.all().delete()
+            AnimeTag.objects.all().delete()
+            MangaTag.objects.all().delete()
+            Anime.objects.all().delete()
+            Manga.objects.all().delete()
+            MetadataTag.objects.all().delete()
+            self.stdout.write(self.style.WARNING("기존 작품/매핑/태그 데이터 삭제 완료 (--fresh)"))
 
         n_anime = n_manga = n_map = n_tag = 0
 
