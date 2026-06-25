@@ -97,6 +97,36 @@ GENERAL = [
     "주인공 성장 서사 진짜 잘 뽑음",
 ]
 
+# 하이큐 전용(배구) 댓글
+HAIKYU = [
+    "히나타 점프 장면에서 소름 돋음",
+    "카게야마-히나타 콤비플레이 최고다",
+    "스포츠물인데 매 경기 손에 땀을 쥠",
+    "배구 룰 몰라도 진짜 재밌게 봄",
+    "작화·연출이 경기 긴장감을 다 살림",
+    "OST 깔리면서 스파이크 꽂을 때 전율",
+    "1기 보고 배구 입문할 뻔했음ㅋㅋ",
+    "카라스노 응원하게 됨 ㅠㅠ",
+    "츠키시마 블로킹 각성 장면 명장면",
+    "니시노야 리시브 진짜 미쳤다",
+    "각 학교 캐릭터들 서사가 다 좋음",
+    "마지막 세트 듀스 심장 떨려서 죽는 줄",
+    "원작도 명작이라 같이 보는 거 추천",
+    "이거 보고 운동하고 싶어졌다",
+    "우시와카전은 진짜 레전드",
+    "오이카와 서브 들어갈 때마다 긴장됨",
+    "정주행하면 밤새는 거 주의",
+    "스포츠 애니 입문작으로 강추합니다",
+    "코트 위 팀워크 보면서 뭉클해짐",
+    "다음 시즌 너무 기다려진다",
+]
+
+# 시연 집중 작품: 제목에 키워드가 포함되면 해당 풀로 댓글을 많이 채움
+FEATURED = {
+    "귀멸": KIMETSU,
+    "하이큐": HAIKYU,
+}
+
 
 class Command(BaseCommand):
     help = "시연용 더미 댓글을 귀멸 작품에 집중 + 인기작에 채웁니다."
@@ -145,26 +175,25 @@ class Command(BaseCommand):
                 n += 1
             return n
 
-        # 3) 귀멸 집중 (만화 + 모든 애니 시즌)
+        # 3) 시연 집중 작품 (귀멸·하이큐 등) — 만화 + 모든 애니 시즌에 댓글 다수
         kim = opts["kimetsu"]
         na = nm = 0
-        kim_animes = list(Anime.objects.filter(title__icontains="귀멸"))
-        kim_mangas = list(Manga.objects.filter(title__icontains="귀멸"))
-        for a in kim_animes:
-            na += add_comments(a, AnimeComment, "anime", KIMETSU, rnd.randint(kim - 2, kim + 2))
-        for m in kim_mangas:
-            nm += add_comments(m, MangaComment, "manga", KIMETSU, rnd.randint(kim, kim + 3))
+        feat_a = feat_m = 0
+        for kw, pool in FEATURED.items():
+            for a in Anime.objects.filter(title__icontains=kw):
+                na += add_comments(a, AnimeComment, "anime", pool, rnd.randint(kim - 2, kim + 2)); feat_a += 1
+            for m in Manga.objects.filter(title__icontains=kw):
+                nm += add_comments(m, MangaComment, "manga", pool, rnd.randint(kim, kim + 3)); feat_m += 1
 
-        # 4) 일반 인기작 (귀멸 제외)
+        # 4) 일반 인기작 (집중 작품 제외)
         per = opts["per"]; topn = opts["works"]
-        gen_animes = list(
-            Anime.objects.exclude(title__icontains="귀멸")
-            .order_by("-favorite_count", "-rating_avg", "title")[:topn]
-        )
-        gen_mangas = list(
-            Manga.objects.exclude(title__icontains="귀멸")
-            .order_by("-favorite_count", "-rating_avg", "title")[:topn]
-        )
+        gen_anime_qs = Anime.objects.all()
+        gen_manga_qs = Manga.objects.all()
+        for kw in FEATURED:
+            gen_anime_qs = gen_anime_qs.exclude(title__icontains=kw)
+            gen_manga_qs = gen_manga_qs.exclude(title__icontains=kw)
+        gen_animes = list(gen_anime_qs.order_by("-favorite_count", "-rating_avg", "title")[:topn])
+        gen_mangas = list(gen_manga_qs.order_by("-favorite_count", "-rating_avg", "title")[:topn])
         for a in gen_animes:
             na += add_comments(a, AnimeComment, "anime", GENERAL, rnd.randint(max(1, per - 2), per + 2))
         for m in gen_mangas:
@@ -172,6 +201,6 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(
             f"더미 댓글 생성 완료 — 유저 {len(users)}명 | 애니 댓글 {na} | 만화 댓글 {nm}\n"
-            f"  · 귀멸 집중: 애니 {len(kim_animes)}작품, 만화 {len(kim_mangas)}작품\n"
+            f"  · 집중({', '.join(FEATURED)}): 애니 {feat_a}작품, 만화 {feat_m}작품\n"
             f"  · 일반: 애니 {len(gen_animes)}작품, 만화 {len(gen_mangas)}작품"
         ))
