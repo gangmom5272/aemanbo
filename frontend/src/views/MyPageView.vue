@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getSession, getMyFavorites, getMyComments, logout, updateMyProfile, uploadAvatar, getGenres } from '../api'
-import { animeGradient, mangaColor, statusBadge, animeStatusBadge } from '../utils/cover'
+import { animeGradient, mangaColor, statusBadge, animeStatusBadge, realImage } from '../utils/cover'
 
 const router = useRouter()
 const loading = ref(true)
@@ -90,6 +90,13 @@ function coverStyle(f) {
   if (f.target_type === 'ANIME') return { background: animeGradient(f.target?.title || '') }
   return { background: mangaColor(f.target?.title || '') }
 }
+function favImg(f) {
+  const u = f.target_type === 'ANIME' ? f.target?.poster_image_url : f.target?.cover_image_url
+  return realImage(u)
+}
+function cImg(c) {
+  return realImage(c.target_image)
+}
 function badge(f) {
   return f.target_type === 'ANIME' ? animeStatusBadge(f.target?.status) : statusBadge(f.target?.status)
 }
@@ -141,7 +148,6 @@ onMounted(async () => {
         </div>
         <div class="p-info">
           <div class="pname">{{ user.nickname || user.username }}</div>
-          <div class="pmeta">@{{ user.username }}<template v-if="user.joined_at"> · 가입 {{ (user.joined_at || '').slice(0, 10) }}</template></div>
           <div class="pbtns">
             <button class="pbtn primary" @click="openEdit">프로필 편집</button>
             <button class="pbtn" @click="doLogout">로그아웃</button>
@@ -158,9 +164,10 @@ onMounted(async () => {
         <div v-if="favorites.length" class="fav-grid">
           <article v-for="f in favorites" :key="f.id" class="fcard" @click="openFav(f)">
             <div class="art" :class="f.target_type === 'ANIME' ? 'cv-anime' : 'cv-manga'" :style="coverStyle(f)">
+              <img v-if="favImg(f)" :src="favImg(f)" :alt="f.target?.title" class="fcover" />
               <span class="kindtag" :class="f.target_type === 'ANIME' ? 'anime' : 'manga'">{{ f.target_type }}</span>
               <span class="fbadge" :class="badge(f).cls">{{ badge(f).label }}</span>
-              <span class="ft">{{ f.target?.title || '(삭제됨)' }}</span>
+              <span v-if="!favImg(f)" class="ft">{{ f.target?.title || '(삭제됨)' }}</span>
             </div>
             <div class="finfo"><div class="fn">{{ f.target?.title || '-' }}</div><div class="fs">{{ f.status_label || (f.target_type === 'ANIME' ? '애니메이션' : '만화') }}</div></div>
           </article>
@@ -173,7 +180,8 @@ onMounted(async () => {
         <div v-if="comments.length" class="act-list">
           <div v-for="c in comments" :key="c.target_type + '-' + c.id" class="arow" @click="openComment(c)">
             <div class="athumb" :class="c.target_type === 'ANIME' ? 'cv-anime' : 'cv-manga'" :style="c.target_type === 'ANIME' ? { background: animeGradient(c.target_title) } : { background: mangaColor(c.target_title) }">
-              <span class="ai">{{ (c.target_title || '?').slice(0, 1) }}</span>
+              <img v-if="cImg(c)" :src="cImg(c)" :alt="c.target_title" class="athumb-img" />
+              <span v-else class="ai">{{ (c.target_title || '?').slice(0, 1) }}</span>
             </div>
             <div class="abody">
               <div class="akind">댓글</div>
@@ -235,6 +243,25 @@ onMounted(async () => {
   object-fit: cover;
   border-radius: 50%;
   z-index: 1;
+}
+.fcard .art { position: relative; overflow: hidden; }
+.fcover {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+.fcard .art .kindtag,
+.fcard .art .fbadge { z-index: 2; }
+.arow .athumb { position: relative; overflow: hidden; }
+.athumb-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .modal-overlay {
   position: fixed;

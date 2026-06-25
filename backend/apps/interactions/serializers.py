@@ -45,6 +45,7 @@ class CommentUserSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     username = serializers.CharField()
     nickname = serializers.CharField(required=False, allow_blank=True)
+    profile_image_url = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
 
 class BaseCommentSerializer(serializers.ModelSerializer):
@@ -90,6 +91,7 @@ class MyCommentSerializer(serializers.Serializer):
     target_type = serializers.CharField()
     target_id = serializers.IntegerField()
     target_title = serializers.CharField()
+    target_image = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     content = serializers.CharField()
     status = serializers.CharField()
     created_at = serializers.DateTimeField()

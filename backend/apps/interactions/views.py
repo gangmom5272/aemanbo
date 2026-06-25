@@ -83,6 +83,7 @@ class MyCommentsAPIView(APIView):
                 "target_type": "ANIME",
                 "target_id": comment.anime_id,
                 "target_title": comment.anime.title,
+                "target_image": comment.anime.poster_image_url,
                 "content": comment.content,
                 "status": comment.status,
                 "created_at": comment.created_at,
@@ -94,6 +95,7 @@ class MyCommentsAPIView(APIView):
                 "target_type": "MANGA",
                 "target_id": comment.manga_id,
                 "target_title": comment.manga.title,
+                "target_image": comment.manga.cover_image_url,
                 "content": comment.content,
                 "status": comment.status,
                 "created_at": comment.created_at,
@@ -117,7 +119,7 @@ class AnimeCommentsAPIView(APIView):
         comments = AnimeComment.objects.select_related("user").filter(
             anime=anime,
             status=CommentStatus.ACTIVE,
-        )
+        ).order_by("-created_at", "-id")
         serializer = AnimeCommentSerializer(comments, many=True)
         return Response(
             {
@@ -146,7 +148,7 @@ class MangaCommentsAPIView(APIView):
         comments = MangaComment.objects.select_related("user").filter(
             manga=manga,
             status=CommentStatus.ACTIVE,
-        )
+        ).order_by("-created_at", "-id")
         serializer = MangaCommentSerializer(comments, many=True)
         return Response(
             {

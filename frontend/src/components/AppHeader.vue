@@ -1,13 +1,16 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getSession, logout } from '../api'
+import { realImage } from '../utils/cover'
 
 const router = useRouter()
 const route = useRoute()
 const keyword = ref('')
 const authed = ref(false)
 const showMenu = ref(false)
+const user = ref(null)
+const avatar = computed(() => realImage(user.value?.profile_image_url))
 
 function submitSearch() {
   const q = keyword.value.trim()
@@ -19,8 +22,10 @@ async function checkAuth() {
   try {
     const s = await getSession()
     authed.value = !!s.authenticated
+    user.value = s.user || null
   } catch (e) {
     authed.value = false
+    user.value = null
   }
 }
 
@@ -75,7 +80,7 @@ watch(() => route.fullPath, () => {
         <RouterLink to="/anime">애니</RouterLink>
         <RouterLink to="/manga">만화</RouterLink>
         <div v-if="authed" class="user-menu" @click.stop>
-          <div class="uic" title="내 메뉴" @click="toggleMenu"></div>
+          <div class="uic" title="내 메뉴" @click="toggleMenu"><img v-if="avatar" :src="avatar" alt="" class="uic-img" /></div>
           <div v-if="showMenu" class="menu">
             <a @click="goMypage">마이페이지</a>
             <a @click="onLogout">로그아웃</a>
@@ -93,6 +98,16 @@ watch(() => route.fullPath, () => {
 }
 .user-menu .uic {
   cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+.uic-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 }
 .menu {
   position: absolute;

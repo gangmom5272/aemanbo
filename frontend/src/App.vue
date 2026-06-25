@@ -17,12 +17,30 @@ onMounted(() => {
 </script>
 
 <template>
-  <AppHeader v-if="!bare" />
-  <RouterView v-slot="{ Component, route: r }">
-    <keep-alive :include="['AnimeListView', 'MangaListView']">
-      <component :is="Component" :key="r.meta.keep ? r.name : r.fullPath" class="page-fade" />
-    </keep-alive>
-  </RouterView>
-  <AppFooter v-if="!bare" />
+  <div class="app-shell">
+    <AppHeader v-if="!bare" />
+    <main class="app-main">
+      <RouterView v-slot="{ Component, route: r }">
+        <keep-alive :include="['AnimeListView', 'MangaListView']">
+          <component :is="Component" :key="r.meta.keep ? r.name : r.fullPath" class="page-fade" />
+        </keep-alive>
+      </RouterView>
+    </main>
+    <AppFooter v-if="!bare" />
+  </div>
   <ChatFab v-if="!bare" />
 </template>
+
+<style>
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.app-main {
+  flex: 1 0 auto;
+}
+.app-shell > footer {
+  flex-shrink: 0;
+}
+</style>

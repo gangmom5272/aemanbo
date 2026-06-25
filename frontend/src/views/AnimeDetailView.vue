@@ -17,8 +17,10 @@ const newComment = ref('')
 const favId = ref(null)
 const posting = ref(false)
 const myUserId = ref(null)
+const myAvatar = ref('')
 const editingId = ref(null)
 const editText = ref('')
+function cAvatar(c) { return realImage(c.user?.profile_image_url) }
 
 // 관리자 작품 편집
 const isAdmin = ref(false)
@@ -158,6 +160,7 @@ onMounted(async () => {
       if (s.authenticated) {
         myUserId.value = s.user?.id
         isAdmin.value = s.user?.role === 'ADMIN'
+        myAvatar.value = realImage(s.user?.profile_image_url)
         const favs = await getMyFavorites()
         const f = (favs.results || []).find((x) => x.target_type === 'ANIME' && x.target_id === anime.value.id)
         if (f) favId.value = f.id
@@ -266,12 +269,12 @@ onMounted(async () => {
           <div class="sec-head"><span class="bar-i"></span><h2>감상평</h2><span class="count">{{ comments.length }}개</span></div>
           <div class="cmt">
             <div class="cin">
-              <div class="av"></div>
+              <div class="av"><img v-if="myAvatar" :src="myAvatar" alt="" class="av-img" /></div>
               <input v-model="newComment" placeholder="이 애니에 대한 감상을 남겨보세요" @keyup.enter="submitComment" />
               <button @click="submitComment">등록</button>
             </div>
             <div v-for="c in comments" :key="c.id" class="citem">
-              <div class="cav"></div>
+              <div class="cav"><img v-if="cAvatar(c)" :src="cAvatar(c)" alt="" class="cav-img" /></div>
               <div class="cbody">
                 <div class="cmeta">
                   <span class="cu">{{ c.user?.nickname || c.user?.username || '익명' }}</span>
@@ -315,6 +318,15 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.av, .cav { position: relative; overflow: hidden; }
+.av-img, .cav-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
 .admin-edit {
   margin-left: 12px;
   font-size: 13px;
